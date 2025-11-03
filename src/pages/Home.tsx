@@ -1,4 +1,7 @@
-import { Link } from "react-router-dom"
+"use client"
+
+import { Link, useNavigate } from "react-router-dom"
+import { useAuth } from "../contexts/AuthContext"
 import { Scale, Users, DollarSign, Shield, BarChart3, MessageSquare } from "lucide-react"
 import { useInView } from "../hooks/useInView"
 
@@ -6,6 +9,18 @@ export default function Home() {
   const [featuresRef, featuresInView] = useInView()
   const [benefitsRef, benefitsInView] = useInView()
   const [statsRef, statsInView] = useInView()
+  const { profile } = useAuth()
+  const navigate = useNavigate()
+
+  const handleAccessDashboard = () => {
+    if (!profile) {
+      navigate("/login")
+    } else if (profile.user_type === "lawyer") {
+      navigate("/dashboard")
+    } else {
+      navigate("/login")
+    }
+  }
 
   return (
     <div className="min-h-screen">
@@ -19,12 +34,12 @@ export default function Home() {
               TRUSTED BY LEGAL PROFESSIONALS
             </p>
             <div className="flex gap-4 justify-center flex-wrap animate-fade-in-up" style={{ animationDelay: "0.4s" }}>
-              <Link
-                to="/login"
+              <button
+                onClick={handleAccessDashboard}
                 className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-3 rounded-full font-medium transition"
               >
                 Access Lawyer Dashboard
-              </Link>
+              </button>
               <Link
                 to="/bounties"
                 className="bg-white hover:bg-gray-100 text-teal-800 px-8 py-3 rounded-full font-medium transition"
@@ -129,12 +144,12 @@ export default function Home() {
             clients, and grow your practice.
           </p>
           <div className="flex gap-4 justify-center flex-wrap">
-            <Link
-              to="/dashboard"
+            <button
+              onClick={handleAccessDashboard}
               className="bg-white hover:bg-gray-100 text-teal-800 px-8 py-3 rounded-full font-medium transition"
             >
               Access Lawyer Dashboard
-            </Link>
+            </button>
             <Link
               to="/signup"
               className="bg-teal-500 hover:bg-teal-600 text-white px-8 py-3 rounded-full font-medium transition border-2 border-white"

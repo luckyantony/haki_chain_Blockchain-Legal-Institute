@@ -19,6 +19,10 @@ export default function BountyDetail() {
   useEffect(() => {
     if (id) {
       loadBountyDetails()
+      const interval = setInterval(() => {
+        loadBountyDetails()
+      }, 3000)
+      return () => clearInterval(interval)
     }
   }, [id])
 
@@ -191,7 +195,7 @@ export default function BountyDetail() {
             </div>
 
             <div className="bg-white rounded-xl shadow-sm p-6">
-              <h3 className="font-bold mb-4">Donors</h3>
+              <h3 className="font-bold mb-4">Donors ({donations.length})</h3>
               {donations.length === 0 ? (
                 <p className="text-gray-500 text-sm">No donations yet</p>
               ) : (
@@ -279,6 +283,15 @@ function DonateModal({ bounty, onClose, onSuccess }: { bounty: Bounty; onClose: 
     try {
       const donationAmount = Number.parseFloat(amount)
 
+      const newTotal = bounty.current_funding + donationAmount
+
+      const { error: updateError } = await supabase
+        .from("bounties")
+        .update({ current_funding: newTotal })
+        .eq("id", bounty.id)
+
+      if (updateError) throw updateError
+
       const { error: donationError } = await supabase.from("donations").insert({
         bounty_id: bounty.id,
         donor_id: isAnonymous ? null : profile?.id,
@@ -288,14 +301,6 @@ function DonateModal({ bounty, onClose, onSuccess }: { bounty: Bounty; onClose: 
       })
 
       if (donationError) throw donationError
-
-      const newTotal = bounty.current_funding + donationAmount
-      const { error: updateError } = await supabase
-        .from("bounties")
-        .update({ current_funding: newTotal })
-        .eq("id", bounty.id)
-
-      if (updateError) throw updateError
 
       alert("Donation successful! Thank you for supporting this case.")
       onSuccess()
