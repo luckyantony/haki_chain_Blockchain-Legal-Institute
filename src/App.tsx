@@ -11,6 +11,12 @@ import BountyDetail from "./pages/BountyDetail"
 import Dashboard from "./pages/Dashboard"
 import Documentation from "./pages/Documentation"
 import AdminDashboard from "./pages/AdminDashboard"
+import Cases from "./pages/Cases"
+import HakiLens from "./pages/HakiLens"
+import HakiDraft from "./pages/HakiDraft"
+import HakiReview from "./pages/HakiReview"
+import HakiReminders from "./pages/HakiReminders"
+import HakiDocs from "./pages/HakiDocs"
 
 function App() {
   return (
@@ -25,6 +31,12 @@ function App() {
             <Route path="/bounties" element={<Bounties />} />
             <Route path="/bounties/:id" element={<BountyDetail />} />
             <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/cases" element={<Cases />} />
+            <Route path="/haki-lens" element={<HakiLens />} />
+            <Route path="/haki-draft" element={<HakiDraft />} />
+            <Route path="/haki-review" element={<HakiReview />} />
+            <Route path="/haki-reminders" element={<HakiReminders />} />
+            <Route path="/haki-docs" element={<HakiDocs />} />
             <Route path="/documentation" element={<Documentation />} />
             <Route path="/admin-dashboard" element={<AdminDashboard />} />
           </Routes>
