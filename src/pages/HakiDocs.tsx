@@ -6,6 +6,15 @@ import TourGuide from "../components/TourGuide"
 export default function HakiDocs() {
   const [showTour, setShowTour] = useState(false)
   const [searchTerm, setSearchTerm] = useState("")
+  const [uploadedFiles, setUploadedFiles] = useState<string[]>([])
+
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files
+    if (files) {
+      const fileNames = Array.from(files).map((f) => f.name)
+      setUploadedFiles((prev) => [...prev, ...fileNames])
+    }
+  }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -25,10 +34,11 @@ export default function HakiDocs() {
                 <p className="text-gray-600">Central document repository for HakiChain</p>
               </div>
               <div className="flex gap-3">
-                <button className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700">
+                <label className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white rounded-lg font-medium hover:bg-teal-700 cursor-pointer">
                   <Upload className="w-4 h-4" />
                   Upload Files
-                </button>
+                  <input type="file" multiple onChange={handleFileUpload} className="hidden" />
+                </label>
                 <button className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg font-medium hover:bg-gray-300">
                   Select from HakiDocs
                 </button>
@@ -57,14 +67,40 @@ export default function HakiDocs() {
             </div>
           </div>
 
-          <div className="bg-white rounded-lg shadow-sm p-12 text-center">
-            <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
-            <p className="text-gray-600 mb-6">Upload your first document to get started</p>
-            <button className="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium">
-              Upload Files
-            </button>
-          </div>
+          {uploadedFiles.length === 0 ? (
+            <div className="bg-white rounded-lg shadow-sm p-12 text-center">
+              <FileText className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+              <h3 className="text-lg font-medium text-gray-900 mb-2">No documents found</h3>
+              <p className="text-gray-600 mb-6">Upload your first document to get started</p>
+              <label className="px-6 py-3 bg-teal-600 text-white rounded-lg hover:bg-teal-700 font-medium cursor-pointer inline-block">
+                Upload Files
+                <input type="file" multiple onChange={handleFileUpload} className="hidden" />
+              </label>
+            </div>
+          ) : (
+            <div className="bg-white rounded-lg shadow-sm overflow-hidden">
+              <table className="w-full">
+                <thead className="bg-gray-50 border-b border-gray-200">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Document Name</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Type</th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Uploaded</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200">
+                  {uploadedFiles.map((file, index) => (
+                    <tr key={index} className="hover:bg-gray-50">
+                      <td className="px-6 py-4 text-sm text-gray-900">{file}</td>
+                      <td className="px-6 py-4 text-sm text-gray-600">
+                        {file.split(".").pop()?.toUpperCase()}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600">Just now</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
     </div>
