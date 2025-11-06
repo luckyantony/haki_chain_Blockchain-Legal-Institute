@@ -171,6 +171,7 @@ npm run typecheck
 
 ## 📁 Project Structure
 
+````
 \`\`\`
 hakichain/
 ├── src/
@@ -204,6 +205,7 @@ hakichain/
 ├── ADMIN_WORKFLOW.md             # Admin guide
 └── README_FINAL.md               # This file
 \`\`\`
+````
 
 ---
 
