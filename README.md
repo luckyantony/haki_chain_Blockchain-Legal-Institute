@@ -75,23 +75,27 @@ HakiChain is a comprehensive platform that connects lawyers with clients through
 ## 🚀 Running the Application
 
 ### Development Mode
-\`\`\`bash
+```bash
 npm run dev
-\`\`\`
+```
 - Hot module replacement enabled
 - Debug mode active
 - Dev tools available
 
 ### Production Build
-\`\`\`bash
+```
+bash
 npm run build
 npm run preview
-\`\`\`
+```
+
 
 ### Type Checking
-\`\`\`bash
+```
+bash
 npm run typecheck
-\`\`\`
+```
+
 
 ---
 
@@ -127,7 +131,6 @@ npm run typecheck
 - Monitor platform metrics
 - Manage dispute resolution
 
-**Credentials**: admin@hakichain.com / Admin@123!HakiChain
 
 ---
 
@@ -336,10 +339,12 @@ See SETUP_GUIDE.md for complete SQL schema.
 ## 🚀 Deployment
 
 ### Deploy to Vercel (Recommended)
-\`\`\`bash
+```
+`bash
 git push origin main
 # Vercel auto-deploys
-\`\`\`
+```
+
 
 ### Deploy to Other Platforms
 - **Netlify**: Connect GitHub → Deploy
