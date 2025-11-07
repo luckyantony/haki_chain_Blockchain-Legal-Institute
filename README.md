@@ -17,14 +17,37 @@
 # 1. Install dependencies
 npm install
 
-# 2. Create .env.local with your Supabase credentials
-# (See SETUP_GUIDE.md for details)
+# 2. Create .env.local with your Supabase and LLM credentials
+# (See SETUP_GUIDE.md and LLM_SETUP.md for details)
 
 # 3. Run the app
 npm run dev
 \`\`\`
 
 Visit `http://localhost:5173` 🚀
+
+### LLM Configuration (Required for AI Features)
+
+HakiChain's AI features (HakiBot, HakiDraft, HakiLens, HakiReview) require LLM API configuration.
+
+**Quick Setup:**
+1. Create `.env.local` in the project root
+2. Add your LLM provider configuration (see `LLM_SETUP.md` for details)
+
+**Example for OpenAI:**
+\`\`\`env
+VITE_LLM_PROVIDER=openai
+VITE_LLM_API_KEY=your-openai-api-key-here
+\`\`\`
+
+**Supported Providers:**
+- OpenAI (GPT-4o-mini, GPT-4o) - Recommended
+- Anthropic (Claude 3.5 Sonnet, Claude 3 Opus)
+- OpenRouter (Unified gateway for 100+ models)
+- Google Gemini (gemini-pro, gemini-pro-vision)
+- Local models (Ollama, custom endpoints)
+
+See `LLM_SETUP.md` for complete setup instructions and troubleshooting.
 
 ---
 
@@ -417,3 +440,13 @@ Your HakiChain platform is now ready to revolutionize legal services in Kenya an
 **Platform**: HakiChain v1.0
 **Last Updated**: October 31, 2025
 **Contact**: support@hakichain.com
+
+### Persistent Workflow State
+
+The AI workflow screens (`HakiDraft`, `HakiLens`, `HakiReview`) now use a shared process store to preserve progress across navigation. Access state with the helpers exported from `src/contexts/ProcessContext.tsx`:
+
+- `getProcessState(processKey)` – read the latest state slice
+- `updateProcessState(processKey, updater)` – merge or replace state
+- `resetProcessState(processKey?)` – reset a slice (or all slices when omitted)
+
+Any new workflow should leverage `useProcess()` instead of local `useState` hooks so users never lose progress when switching tabs or routes.

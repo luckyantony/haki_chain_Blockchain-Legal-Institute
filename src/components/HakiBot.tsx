@@ -1,13 +1,15 @@
 "use client"
 
 import { useState, useRef, useEffect } from "react"
-import { MessageCircle, X, Send, Minimize2, Maximize2 } from "lucide-react"
+import { MessageCircle, X, Send, Minimize2, Maximize2, AlertCircle } from "lucide-react"
+import { chatCompletion } from "../lib/llm"
 
 interface Message {
   id: string
   text: string
   sender: "user" | "bot"
   timestamp: Date
+  error?: boolean
 }
 
 const QUICK_QUESTIONS = [
@@ -16,19 +18,6 @@ const QUICK_QUESTIONS = [
   "What is the process for registering a business?",
   "How do I report domestic violence?",
 ]
-
-const BOT_RESPONSES: { [key: string]: string } = {
-  rights:
-    "As a tenant in Kenya, you have rights including the right to a written lease agreement, protection from arbitrary eviction, and the right to safe and habitable housing.",
-  divorce:
-    "To file for divorce in Kenya, you need to petition the court through a lawyer. The process includes filing documents, attending hearings, and obtaining a decree.",
-  business:
-    "To register a business in Kenya, visit the DGSB (Directorate of General Services B) office with your ID, complete the registration form, and pay the registration fee.",
-  domestic:
-    "If you experience domestic violence, you can file for a protection order at the magistrate court, contact the police, or reach out to local organizations like Kenya Red Cross for support.",
-  default:
-    "Thank you for your question! For more detailed legal advice, please consult with a qualified lawyer on our platform.",
-}
 
 export default function HakiBot() {
   const [isOpen, setIsOpen] = useState(false)
@@ -42,6 +31,7 @@ export default function HakiBot() {
     },
   ])
   const [inputValue, setInputValue] = useState("")
+  const [isLoading, setIsLoading] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -52,8 +42,8 @@ export default function HakiBot() {
     scrollToBottom()
   }, [messages])
 
-  const handleSendMessage = (text: string) => {
-    if (!text.trim()) return
+  const handleSendMessage = async (text: string) => {
+    if (!text.trim() || isLoading) return
 
     const userMessage: Message = {
       id: Date.now().toString(),
@@ -64,30 +54,62 @@ export default function HakiBot() {
 
     setMessages((prev) => [...prev, userMessage])
     setInputValue("")
+    setIsLoading(true)
 
-    // Simulate bot response delay
-    setTimeout(() => {
-      let response = BOT_RESPONSES.default
+    // Add loading message
+    const loadingMessageId = (Date.now() + 1).toString()
+    const loadingMessage: Message = {
+      id: loadingMessageId,
+      text: "Thinking...",
+      sender: "bot",
+      timestamp: new Date(),
+    }
+    setMessages((prev) => [...prev, loadingMessage])
 
-      if (text.toLowerCase().includes("tenant") || text.toLowerCase().includes("rights")) {
-        response = BOT_RESPONSES.rights
-      } else if (text.toLowerCase().includes("divorce")) {
-        response = BOT_RESPONSES.divorce
-      } else if (text.toLowerCase().includes("business") || text.toLowerCase().includes("register")) {
-        response = BOT_RESPONSES.business
-      } else if (text.toLowerCase().includes("domestic") || text.toLowerCase().includes("violence")) {
-        response = BOT_RESPONSES.domestic
+    try {
+      // Call LLM API
+      const systemPrompt = `You are HakiBot, a helpful AI legal assistant specializing in Kenyan law. 
+Provide clear, accurate, and practical legal guidance. Always remind users that for personalized legal advice, 
+they should consult with a qualified lawyer. Be concise but thorough in your responses.`
+
+      const response = await chatCompletion(text, systemPrompt)
+
+      // Remove loading message
+      setMessages((prev) => prev.filter((msg) => msg.id !== loadingMessageId))
+
+      if (response.error) {
+        const errorMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          text: `Error: ${response.error}\n\nPlease check your API configuration in the .env file.`,
+          sender: "bot",
+          timestamp: new Date(),
+          error: true,
+        }
+        setMessages((prev) => [...prev, errorMessage])
+      } else {
+        const botMessage: Message = {
+          id: (Date.now() + 2).toString(),
+          text: response.content || "I apologize, but I couldn't generate a response. Please try again.",
+          sender: "bot",
+          timestamp: new Date(),
+        }
+        setMessages((prev) => [...prev, botMessage])
       }
+    } catch (error) {
+      // Remove loading message
+      setMessages((prev) => prev.filter((msg) => msg.id !== loadingMessageId))
 
-      const botMessage: Message = {
-        id: (Date.now() + 1).toString(),
-        text: response,
+      const errorMessage: Message = {
+        id: (Date.now() + 2).toString(),
+        text: `An unexpected error occurred: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
         sender: "bot",
         timestamp: new Date(),
+        error: true,
       }
-
-      setMessages((prev) => [...prev, botMessage])
-    }, 500)
+      setMessages((prev) => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -130,10 +152,18 @@ export default function HakiBot() {
                   className={`max-w-xs px-4 py-2 rounded-lg ${
                     message.sender === "user"
                       ? "bg-blue-600 text-white rounded-br-none"
+                      : message.error
+                      ? "bg-red-100 text-red-800 rounded-bl-none border border-red-300"
                       : "bg-gray-200 text-gray-800 rounded-bl-none"
                   }`}
                 >
-                  <p className="text-sm">{message.text}</p>
+                  {message.error && (
+                    <div className="flex items-center gap-1 mb-1">
+                      <AlertCircle className="w-3 h-3" />
+                      <p className="text-xs font-semibold">Error</p>
+                    </div>
+                  )}
+                  <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                   <p className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-600"}`}>
                     {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
@@ -174,7 +204,8 @@ export default function HakiBot() {
               />
               <button
                 onClick={() => handleSendMessage(inputValue)}
-                className="bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-lg transition"
+                disabled={isLoading}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white p-2 rounded-lg transition"
                 title="Send"
               >
                 <Send className="w-4 h-4" />

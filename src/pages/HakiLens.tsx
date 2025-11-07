@@ -1,35 +1,145 @@
-import { useState } from "react"
+import { useEffect } from "react"
 import LawyerSidebar from "../components/LawyerSidebar"
-import { Search, Database, Sparkles } from "lucide-react"
+import { Search, Database, Sparkles, AlertCircle } from "lucide-react"
 import TourGuide from "../components/TourGuide"
+import { legalResearch } from "../lib/llm"
+import { useProcess } from "../contexts/ProcessContext"
 
 export default function HakiLens() {
-  const [activeTab, setActiveTab] = useState("deep-research")
-  const [deepResearchMode, setDeepResearchMode] = useState("auto-detect")
-  const [searchUrl, setSearchUrl] = useState("")
-  const [caseSearchTerm, setCaseSearchTerm] = useState("")
-  const [sortBy, setSortBy] = useState("date_created")
-  const [aiQuestion, setAiQuestion] = useState("")
-  const [showTour, setShowTour] = useState(false)
-  const [searching, setSearching] = useState(false)
-  const [searchResult, setSearchResult] = useState("")
+  const { getProcessState, updateProcessState } = useProcess()
+  const lensState = getProcessState("hakiLens")
+  const {
+    showTour,
+    activeTab,
+    deepResearchMode,
+    searchUrl,
+    caseSearchTerm,
+    sortBy,
+    aiQuestion,
+    searching,
+    searchResult,
+    searchError,
+    aiAnswer,
+    aiLoading,
+    aiError,
+  } = lensState
 
-  const handleDeepResearch = () => {
+  useEffect(() => {
+    console.log("[HakiLens] mounted")
+    return () => {
+      console.log("[HakiLens] unmounted")
+    }
+  }, [])
+
+  useEffect(() => {
+    console.log("[HakiLens] state updated", lensState)
+  }, [lensState])
+
+  const handleDeepResearch = async () => {
     if (!searchUrl) {
       alert("Please enter a URL to research")
       return
     }
-    setSearching(true)
-    setTimeout(() => {
-      setSearchResult(`Deep Research Results for: ${searchUrl}\n\nMode: ${deepResearchMode}\n\n[This is a placeholder for deep research results. Backend integration pending.]`)
-      setSearching(false)
-    }, 2000)
+
+    updateProcessState("hakiLens", {
+      searching: true,
+      searchError: null,
+      searchResult: "",
+    })
+
+    try {
+      const prompt = `Perform deep legal research on the following URL: ${searchUrl}
+
+Research Mode: ${deepResearchMode}
+
+Please analyze the content and provide:
+1. Summary of the legal case or content
+2. Key legal issues identified
+3. Relevant legal precedents or references
+4. Jurisdiction and court information (if applicable)
+5. Important dates and parties involved
+6. Legal analysis and implications
+
+Note: This is a research request. Analyze the URL content and provide comprehensive legal research findings.`
+
+      const response = await legalResearch(prompt)
+
+      if (response.error) {
+        updateProcessState("hakiLens", {
+          searchError: response.error,
+          searchResult: "",
+        })
+      } else if (response.content) {
+        updateProcessState("hakiLens", {
+          searchResult: `Deep Research Results for: ${searchUrl}\n\nMode: ${deepResearchMode}\n\n${response.content}`,
+          searchError: null,
+        })
+      } else {
+        updateProcessState("hakiLens", {
+          searchError: "No research results generated. Please try again.",
+          searchResult: "",
+        })
+      }
+    } catch (err) {
+      updateProcessState("hakiLens", {
+        searchError: err instanceof Error ? err.message : "An unexpected error occurred during research.",
+        searchResult: "",
+      })
+    } finally {
+      updateProcessState("hakiLens", {
+        searching: false,
+      })
+    }
+  }
+
+  const handleAIQuestion = async () => {
+    if (!aiQuestion.trim()) {
+      alert("Please enter a question")
+      return
+    }
+
+    updateProcessState("hakiLens", {
+      aiLoading: true,
+      aiError: null,
+      aiAnswer: "",
+    })
+
+    try {
+      const context = caseSearchTerm ? `Search context: ${caseSearchTerm}` : undefined
+      const response = await legalResearch(aiQuestion, context)
+
+      if (response.error) {
+        updateProcessState("hakiLens", {
+          aiError: response.error,
+          aiAnswer: "",
+        })
+      } else if (response.content) {
+        updateProcessState("hakiLens", {
+          aiAnswer: response.content,
+          aiError: null,
+        })
+      } else {
+        updateProcessState("hakiLens", {
+          aiError: "No answer generated. Please try again.",
+          aiAnswer: "",
+        })
+      }
+    } catch (err) {
+      updateProcessState("hakiLens", {
+        aiError: err instanceof Error ? err.message : "An unexpected error occurred.",
+        aiAnswer: "",
+      })
+    } finally {
+      updateProcessState("hakiLens", {
+        aiLoading: false,
+      })
+    }
   }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {showTour && <TourGuide onComplete={() => setShowTour(false)} />}
-      <LawyerSidebar onTourStart={() => setShowTour(true)} />
+      {showTour && <TourGuide onComplete={() => updateProcessState("hakiLens", { showTour: false })} />}
+      <LawyerSidebar onTourStart={() => updateProcessState("hakiLens", { showTour: true })} />
       <div className="flex-1 ml-[280px] p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
@@ -46,20 +156,26 @@ export default function HakiLens() {
             <div className="border-b border-gray-200">
               <div className="flex gap-1 px-6">
                 <button
-                  onClick={() => setActiveTab("deep-research")}
-                  className={`px-6 py-4 font-medium text-sm border-b-2 transition ${activeTab === "deep-research" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-900"}`}
+                  onClick={() => updateProcessState("hakiLens", { activeTab: "deep-research" })}
+                  className={`px-6 py-4 font-medium text-sm border-b-2 transition ${
+                    activeTab === "deep-research" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-900"
+                  }`}
                 >
                   Deep Research
                 </button>
                 <button
-                  onClick={() => setActiveTab("case-database")}
-                  className={`px-6 py-4 font-medium text-sm border-b-2 transition ${activeTab === "case-database" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-900"}`}
+                  onClick={() => updateProcessState("hakiLens", { activeTab: "case-database" })}
+                  className={`px-6 py-4 font-medium text-sm border-b-2 transition ${
+                    activeTab === "case-database" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-900"
+                  }`}
                 >
                   Case Database
                 </button>
                 <button
-                  onClick={() => setActiveTab("ai-assistant")}
-                  className={`px-6 py-4 font-medium text-sm border-b-2 transition ${activeTab === "ai-assistant" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-900"}`}
+                  onClick={() => updateProcessState("hakiLens", { activeTab: "ai-assistant" })}
+                  className={`px-6 py-4 font-medium text-sm border-b-2 transition ${
+                    activeTab === "ai-assistant" ? "border-blue-600 text-blue-600" : "border-transparent text-gray-600 hover:text-gray-900"
+                  }`}
                 >
                   AI Assistant
                 </button>
@@ -71,20 +187,26 @@ export default function HakiLens() {
                 <div>
                   <div className="flex gap-4 mb-8 border-b border-gray-200 pb-4">
                     <button
-                      onClick={() => setDeepResearchMode("auto-detect")}
-                      className={`px-4 py-2 rounded-lg font-medium text-sm transition ${deepResearchMode === "auto-detect" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                      onClick={() => updateProcessState("hakiLens", { deepResearchMode: "auto-detect" })}
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
+                        deepResearchMode === "auto-detect" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
                     >
                       Auto Detect
                     </button>
                     <button
-                      onClick={() => setDeepResearchMode("listing-crawl")}
-                      className={`px-4 py-2 rounded-lg font-medium text-sm transition ${deepResearchMode === "listing-crawl" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                      onClick={() => updateProcessState("hakiLens", { deepResearchMode: "listing-crawl" })}
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
+                        deepResearchMode === "listing-crawl" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
                     >
                       Listing Crawl
                     </button>
                     <button
-                      onClick={() => setDeepResearchMode("single-case")}
-                      className={`px-4 py-2 rounded-lg font-medium text-sm transition ${deepResearchMode === "single-case" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"}`}
+                      onClick={() => updateProcessState("hakiLens", { deepResearchMode: "single-case" })}
+                      className={`px-4 py-2 rounded-lg font-medium text-sm transition ${
+                        deepResearchMode === "single-case" ? "bg-blue-100 text-blue-700" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
                     >
                       Single Case
                     </button>
@@ -96,7 +218,7 @@ export default function HakiLens() {
                       <input
                         type="url"
                         value={searchUrl}
-                        onChange={(e) => setSearchUrl(e.target.value)}
+                        onChange={(e) => updateProcessState("hakiLens", { searchUrl: e.target.value })}
                         placeholder="https://example.com/case-page-or-listing"
                         className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
@@ -115,12 +237,28 @@ export default function HakiLens() {
                     </p>
                   </div>
 
+                  {searchError && (
+                    <div className="mt-6 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h3 className="font-medium text-red-900 mb-1">Research Error</h3>
+                          <p className="text-sm text-red-700">{searchError}</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   {searchResult && (
                     <div className="mt-6 bg-white border border-gray-200 rounded-lg p-6">
                       <h3 className="font-medium text-gray-900 mb-3">Research Results</h3>
                       <pre className="text-sm text-gray-700 whitespace-pre-wrap">{searchResult}</pre>
                       <button
-                        onClick={() => setSearchResult("")}
+                        onClick={() =>
+                          updateProcessState("hakiLens", {
+                            searchResult: "",
+                            searchError: null,
+                          })
+                        }
                         className="mt-4 px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                       >
                         Clear Results
@@ -138,14 +276,14 @@ export default function HakiLens() {
                       <input
                         type="text"
                         value={caseSearchTerm}
-                        onChange={(e) => setCaseSearchTerm(e.target.value)}
+                        onChange={(e) => updateProcessState("hakiLens", { caseSearchTerm: e.target.value })}
                         placeholder="Search cases by title, parties, or content..."
                         className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       />
                     </div>
                     <select
                       value={sortBy}
-                      onChange={(e) => setSortBy(e.target.value)}
+                      onChange={(e) => updateProcessState("hakiLens", { sortBy: e.target.value })}
                       className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     >
                       <option value="date_created">Date Created</option>
@@ -181,16 +319,49 @@ export default function HakiLens() {
                     <label className="block text-sm font-medium text-gray-700 mb-2">Ask a Legal Question</label>
                     <textarea
                       value={aiQuestion}
-                      onChange={(e) => setAiQuestion(e.target.value)}
+                      onChange={(e) => updateProcessState("hakiLens", { aiQuestion: e.target.value })}
                       placeholder="e.g., What are the key precedents for contract disputes in commercial law?"
                       rows={4}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent resize-none"
+                      disabled={aiLoading}
                     ></textarea>
                     <div className="mt-4 flex justify-end">
-                      <button className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition">
-                        Ask AI
+                      <button
+                        onClick={handleAIQuestion}
+                        disabled={aiLoading}
+                        className="px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 font-medium transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {aiLoading ? "Thinking..." : "Ask AI"}
                       </button>
                     </div>
+                    {aiError && (
+                      <div className="mt-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                        <div className="flex items-start gap-2">
+                          <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                          <div>
+                            <h3 className="font-medium text-red-900 mb-1">Error</h3>
+                            <p className="text-sm text-red-700">{aiError}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                    {aiAnswer && (
+                      <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
+                        <h3 className="font-medium text-purple-900 mb-2">AI Answer</h3>
+                        <pre className="text-sm text-purple-800 whitespace-pre-wrap">{aiAnswer}</pre>
+                        <button
+                          onClick={() =>
+                            updateProcessState("hakiLens", {
+                              aiAnswer: "",
+                              aiError: null,
+                            })
+                          }
+                          className="mt-3 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                        >
+                          Clear Answer
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               )}

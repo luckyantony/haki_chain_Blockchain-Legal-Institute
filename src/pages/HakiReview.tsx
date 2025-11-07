@@ -1,25 +1,159 @@
-import { useState } from "react"
+import { useRef, useEffect } from "react"
 import LawyerSidebar from "../components/LawyerSidebar"
-import { Eye, Upload, MessageSquare, FileText, Edit, FileSignature } from "lucide-react"
+import { Eye, Upload, MessageSquare, FileText, Edit, FileSignature, Send, AlertCircle } from "lucide-react"
 import TourGuide from "../components/TourGuide"
+import { chatCompletion } from "../lib/llm"
+import { useProcess } from "../contexts/ProcessContext"
+
+interface ChatMessage {
+  id: string
+  text: string
+  sender: "user" | "bot"
+  timestamp: Date
+  error?: boolean
+}
 
 export default function HakiReview() {
-  const [showTour, setShowTour] = useState(false)
-  const [message, setMessage] = useState("")
-  const [activeTab, setActiveTab] = useState("chat")
-  const [uploadedFile, setUploadedFile] = useState<string | null>(null)
+  const { getProcessState, updateProcessState } = useProcess()
+  const reviewState = getProcessState("hakiReview")
+  const { showTour, message, activeTab, uploadedFile, chatMessages, isLoading } = reviewState
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    console.log("[HakiReview] mounted")
+    return () => {
+      console.log("[HakiReview] unmounted")
+    }
+  }, [])
+
+  useEffect(() => {
+    console.log("[HakiReview] state updated", reviewState)
+  }, [reviewState])
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [chatMessages])
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (file) {
-      setUploadedFile(file.name)
+      updateProcessState("hakiReview", (prev) => {
+        const fileMessage: ChatMessage = {
+          id: Date.now().toString(),
+          text: `Document "${file.name}" has been uploaded. I can help you review, analyze, or answer questions about this document.`,
+          sender: "bot",
+          timestamp: new Date(),
+        }
+
+        return {
+          ...prev,
+          uploadedFile: file.name,
+          chatMessages: [...prev.chatMessages, fileMessage],
+        }
+      })
+    }
+  }
+
+  const handleSendMessage = async () => {
+    if (!message.trim() || isLoading) return
+
+    const userMessage: ChatMessage = {
+      id: Date.now().toString(),
+      text: message,
+      sender: "user",
+      timestamp: new Date(),
+    }
+
+    updateProcessState("hakiReview", (prev) => ({
+      ...prev,
+      chatMessages: [...prev.chatMessages, userMessage],
+      message: "",
+      isLoading: true,
+    }))
+
+    const loadingMessageId = (Date.now() + 1).toString()
+
+    updateProcessState("hakiReview", (prev) => ({
+      ...prev,
+      chatMessages: [
+        ...prev.chatMessages,
+        {
+          id: loadingMessageId,
+          text: "Analyzing...",
+          sender: "bot",
+          timestamp: new Date(),
+        },
+      ],
+    }))
+
+    try {
+      const systemPrompt = `You are an AI document review assistant specializing in legal documents. 
+You help lawyers review, analyze, and understand legal documents. 
+${uploadedFile ? `The user has uploaded a document: ${uploadedFile}.` : "No document has been uploaded yet."}
+Provide clear, accurate analysis and suggestions for legal documents.`
+
+      const response = await chatCompletion(userMessage.text, systemPrompt)
+
+      updateProcessState("hakiReview", (prev) => {
+        const filteredMessages = prev.chatMessages.filter((msg) => msg.id !== loadingMessageId)
+
+        if (response.error) {
+          return {
+            ...prev,
+            chatMessages: [
+              ...filteredMessages,
+              {
+                id: (Date.now() + 2).toString(),
+                text: `Error: ${response.error}\n\nPlease check your API configuration.`,
+                sender: "bot",
+                timestamp: new Date(),
+                error: true,
+              },
+            ],
+            isLoading: false,
+          }
+        }
+
+        return {
+          ...prev,
+          chatMessages: [
+            ...filteredMessages,
+            {
+              id: (Date.now() + 2).toString(),
+              text: response.content || "I apologize, but I couldn't generate a response. Please try again.",
+              sender: "bot",
+              timestamp: new Date(),
+            },
+          ],
+          isLoading: false,
+        }
+      })
+    } catch (error) {
+      updateProcessState("hakiReview", (prev) => {
+        const filteredMessages = prev.chatMessages.filter((msg) => msg.id !== loadingMessageId)
+
+        return {
+          ...prev,
+          chatMessages: [
+            ...filteredMessages,
+            {
+              id: (Date.now() + 2).toString(),
+              text: `An unexpected error occurred: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
+              sender: "bot",
+              timestamp: new Date(),
+              error: true,
+            },
+          ],
+          isLoading: false,
+        }
+      })
     }
   }
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {showTour && <TourGuide onComplete={() => setShowTour(false)} />}
-      <LawyerSidebar onTourStart={() => setShowTour(true)} />
+      {showTour && <TourGuide onComplete={() => updateProcessState("hakiReview", { showTour: false })} />}
+      <LawyerSidebar onTourStart={() => updateProcessState("hakiReview", { showTour: true })} />
       <div className="flex-1 ml-[280px] p-8">
         <div className="max-w-7xl mx-auto">
           <div className="mb-8">
@@ -41,7 +175,12 @@ export default function HakiReview() {
                   <h3 className="font-medium text-gray-900 mb-2">{uploadedFile}</h3>
                   <p className="text-sm text-gray-600 mb-4">Document uploaded successfully</p>
                   <button
-                    onClick={() => setUploadedFile(null)}
+                    onClick={() =>
+                      updateProcessState("hakiReview", (prev) => ({
+                        ...prev,
+                        uploadedFile: null,
+                      }))
+                    }
                     className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
                   >
                     Remove File
@@ -65,22 +204,28 @@ export default function HakiReview() {
               <h2 className="text-lg font-semibold text-gray-900 mb-4">HakiReview Assistant</h2>
               <div className="flex gap-2 mb-4">
                 <button
-                  onClick={() => setActiveTab("chat")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${activeTab === "chat" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"}`}
+                  onClick={() => updateProcessState("hakiReview", { activeTab: "chat" })}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${
+                    activeTab === "chat" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"
+                  }`}
                 >
                   <MessageSquare className="w-4 h-4" />
                   Chat
                 </button>
                 <button
-                  onClick={() => setActiveTab("edit")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${activeTab === "edit" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"}`}
+                  onClick={() => updateProcessState("hakiReview", { activeTab: "edit" })}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${
+                    activeTab === "edit" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"
+                  }`}
                 >
                   <Edit className="w-4 h-4" />
                   Edit
                 </button>
                 <button
-                  onClick={() => setActiveTab("esign")}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${activeTab === "esign" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"}`}
+                  onClick={() => updateProcessState("hakiReview", { activeTab: "esign" })}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${
+                    activeTab === "esign" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"
+                  }`}
                 >
                   <FileSignature className="w-4 h-4" />
                   E-Sign
@@ -89,23 +234,51 @@ export default function HakiReview() {
 
               {activeTab === "chat" && (
                 <>
-                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-4">
-                    <MessageSquare className="w-5 h-5 text-blue-600 mb-2" />
-                    <p className="text-sm text-blue-900">
-                      Hi! I'm your AI document assistant. I can help you review, analyze, edit, and sign your legal
-                      documents. Upload a document to get started!
-                    </p>
-                    <p className="text-xs text-blue-600 mt-2">05:03 PM</p>
+                  <div className="flex-1 overflow-y-auto max-h-[400px] mb-4 space-y-3">
+                    {chatMessages.map((msg) => (
+                      <div key={msg.id} className={`flex ${msg.sender === "user" ? "justify-end" : "justify-start"}`}>
+                        <div
+                          className={`max-w-[80%] px-4 py-2 rounded-lg ${
+                            msg.sender === "user"
+                              ? "bg-blue-600 text-white rounded-br-none"
+                              : msg.error
+                              ? "bg-red-100 text-red-800 rounded-bl-none border border-red-300"
+                              : "bg-gray-100 text-gray-800 rounded-bl-none"
+                          }`}
+                        >
+                          {msg.error && (
+                            <div className="flex items-center gap-1 mb-1">
+                              <AlertCircle className="w-3 h-3" />
+                              <p className="text-xs font-semibold">Error</p>
+                            </div>
+                          )}
+                          <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                          <p className={`text-xs mt-1 ${msg.sender === "user" ? "text-blue-100" : "text-gray-600"}`}>
+                            {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          </p>
+                        </div>
+                      </div>
+                    ))}
+                    <div ref={messagesEndRef} />
                   </div>
 
-                  <div className="mt-4">
+                  <div className="mt-4 flex gap-2">
                     <input
                       type="text"
                       value={message}
-                      onChange={(e) => setMessage(e.target.value)}
+                      onChange={(e) => updateProcessState("hakiReview", { message: e.target.value })}
+                      onKeyPress={(e) => e.key === "Enter" && handleSendMessage()}
                       placeholder="Ask me about your document..."
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                      disabled={isLoading}
                     />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={isLoading || !message.trim()}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      <Send className="w-4 h-4" />
+                    </button>
                   </div>
                 </>
               )}
