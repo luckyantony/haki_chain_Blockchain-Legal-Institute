@@ -89,3 +89,118 @@
 .chatbot-message {
   animation: fadeInUp 0.4s ease-out;
 }
+
+/* legal typography */
+.legal-typography {
+  color: #1f2937;
+  font-family: "Times New Roman", "Georgia", serif;
+  line-height: 1.6;
+  font-size: 0.95rem;
+  text-align: justify;
+}
+
+.legal-typography > * + * {
+  margin-top: 1rem;
+}
+
+.legal-heading {
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: 700;
+  text-align: center;
+}
+
+.legal-heading-1 {
+  font-size: 1.4rem;
+}
+
+.legal-heading-2 {
+  font-size: 1.25rem;
+}
+
+.legal-heading-3,
+.legal-heading-4 {
+  font-size: 1.1rem;
+  text-align: left;
+  margin-top: 1.5rem;
+}
+
+.legal-paragraph {
+  margin: 0;
+  text-align: justify;
+}
+
+.legal-strong {
+  font-weight: 700;
+}
+
+.legal-em {
+  font-style: italic;
+}
+
+.legal-list {
+  margin: 0 0 0 1.25rem;
+  padding: 0;
+  text-align: left;
+}
+
+.legal-list-disc {
+  list-style-type: disc;
+}
+
+.legal-list-decimal {
+  list-style-type: decimal;
+}
+
+.legal-list-item + .legal-list-item {
+  margin-top: 0.35rem;
+}
+
+.legal-blockquote {
+  border-left: 3px solid #1f2937;
+  padding-left: 1rem;
+  font-style: italic;
+  background-color: rgba(31, 41, 55, 0.04);
+}
+
+.legal-table-wrapper {
+  overflow-x: auto;
+}
+
+.legal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.legal-table th,
+.legal-table td {
+  border: 1px solid rgba(31, 41, 55, 0.25);
+  padding: 0.5rem 0.75rem;
+  text-align: left;
+}
+
+.legal-table-heading {
+  background-color: rgba(31, 41, 55, 0.08);
+  font-weight: 600;
+}
+
+.legal-code-inline {
+  font-family: "Courier New", monospace;
+  background-color: rgba(31, 41, 55, 0.08);
+  padding: 0.1rem 0.3rem;
+  border-radius: 4px;
+}
+
+.legal-code-block {
+  background-color: rgba(31, 41, 55, 0.08);
+  padding: 0.75rem;
+  border-radius: 6px;
+  overflow-x: auto;
+}
+
+.legal-divider {
+  border: none;
+  border-top: 1px solid rgba(31, 41, 55, 0.3);
+  margin: 1.5rem 0;
+}

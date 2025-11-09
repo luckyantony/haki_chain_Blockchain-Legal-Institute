@@ -4,6 +4,7 @@ import { Search, Database, Sparkles, AlertCircle } from "lucide-react"
 import TourGuide from "../components/TourGuide"
 import { legalResearch } from "../lib/llm"
 import { useProcess } from "../contexts/ProcessContext"
+import { LegalMarkdownRenderer } from "../components/LegalMarkdownRenderer"
 
 export default function HakiLens() {
   const { getProcessState, updateProcessState } = useProcess()
@@ -251,7 +252,7 @@ Note: This is a research request. Analyze the URL content and provide comprehens
                   {searchResult && (
                     <div className="mt-6 bg-white border border-gray-200 rounded-lg p-6">
                       <h3 className="font-medium text-gray-900 mb-3">Research Results</h3>
-                      <pre className="text-sm text-gray-700 whitespace-pre-wrap">{searchResult}</pre>
+                      <LegalMarkdownRenderer content={searchResult} />
                       <button
                         onClick={() =>
                           updateProcessState("hakiLens", {
@@ -348,7 +349,7 @@ Note: This is a research request. Analyze the URL content and provide comprehens
                     {aiAnswer && (
                       <div className="mt-4 bg-purple-50 border border-purple-200 rounded-lg p-4">
                         <h3 className="font-medium text-purple-900 mb-2">AI Answer</h3>
-                        <pre className="text-sm text-purple-800 whitespace-pre-wrap">{aiAnswer}</pre>
+                        <LegalMarkdownRenderer content={aiAnswer} className="text-purple-900" />
                         <button
                           onClick={() =>
                             updateProcessState("hakiLens", {

@@ -13,6 +13,7 @@ import {
 import { exportToDocx, exportToPDF, sendToEmail, sendToHakiDocs } from "../lib/exporters"
 import { toast } from "../../hooks/use-toast"
 import { formatLegalLetter, sanitizeLegalContent } from "../lib/legalFormatter"
+import { LegalMarkdownRenderer } from "../components/LegalMarkdownRenderer"
 
 const documentCategories = [
   "General Documents",
@@ -316,7 +317,7 @@ Generate the complete document now:`
               {generatedDoc ? (
                 <div>
                   <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-h-[600px] overflow-y-auto">
-                    <pre className="text-sm text-gray-800 whitespace-pre-wrap font-mono">{generatedDoc}</pre>
+                    <LegalMarkdownRenderer content={generatedDoc} />
                   </div>
                   <div className="mt-4 flex gap-3">
                     <DropdownMenu>

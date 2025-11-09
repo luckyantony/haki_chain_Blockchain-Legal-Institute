@@ -228,7 +228,7 @@ async function callOpenRouter(
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${config.apiKey}`,
         'HTTP-Referer': window.location.origin, // Optional: for analytics
-        'X-Title': 'HakiChain Legal Platform', // Optional: for analytics
+        'X-Title': 'HakiChain BLI Web App', // Optional: for analytics
       },
       body: JSON.stringify({
         model: config.model || 'openai/gpt-4o-mini',

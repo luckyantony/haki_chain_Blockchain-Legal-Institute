@@ -3,7 +3,7 @@ import LawyerSidebar from "../components/LawyerSidebar"
 import { Eye, Upload, MessageSquare, FileText, Edit, FileSignature, Send, AlertCircle } from "lucide-react"
 import TourGuide from "../components/TourGuide"
 import { chatCompletion } from "../lib/llm"
-import { formatAnalysisResponse } from "../lib/legalFormatter"
+import { LegalMarkdownRenderer } from "../components/LegalMarkdownRenderer"
 import { useProcess } from "../contexts/ProcessContext"
 
 interface ChatMessage {
@@ -182,7 +182,7 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
             ...filteredMessages,
             {
               id: (Date.now() + 2).toString(),
-              text: formatAnalysisResponse(response.content || "I apologize, but I couldn't generate a response. Please try again."),
+              text: response.content?.trim() || "I apologize, but I couldn't generate a response. Please try again.",
               sender: "bot",
               timestamp: new Date(),
             },
@@ -200,9 +200,7 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
             ...filteredMessages,
             {
               id: (Date.now() + 2).toString(),
-              text: formatAnalysisResponse(
-                `An unexpected error occurred: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`
-              ),
+              text: `An unexpected error occurred: ${error instanceof Error ? error.message : "Unknown error"}. Please try again.`,
               sender: "bot",
               timestamp: new Date(),
               error: true,
@@ -311,13 +309,19 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                               : "bg-gray-100 text-gray-800 rounded-bl-none"
                           }`}
                         >
-                          {msg.error && (
-                            <div className="flex items-center gap-1 mb-1">
+                          {msg.error ? (
+                            <>
                               <AlertCircle className="w-3 h-3" />
                               <p className="text-xs font-semibold">Error</p>
-                            </div>
+                            </>
+                          ) : null}
+                          {msg.error ? (
+                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
+                          ) : msg.sender === "bot" ? (
+                            <LegalMarkdownRenderer content={msg.text} />
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                           )}
-                          <p className="text-sm whitespace-pre-wrap">{msg.text}</p>
                           <p className={`text-xs mt-1 ${msg.sender === "user" ? "text-blue-100" : "text-gray-600"}`}>
                             {msg.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </p>

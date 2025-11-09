@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from "react"
 import { MessageCircle, X, Send, Minimize2, Maximize2, AlertCircle } from "lucide-react"
 import { chatCompletion } from "../lib/llm"
+import { LegalMarkdownRenderer } from "./LegalMarkdownRenderer"
 
 interface Message {
   id: string
@@ -89,7 +90,7 @@ they should consult with a qualified lawyer. Be concise but thorough in your res
       } else {
         const botMessage: Message = {
           id: (Date.now() + 2).toString(),
-          text: response.content || "I apologize, but I couldn't generate a response. Please try again.",
+          text: response.content?.trim() || "I apologize, but I couldn't generate a response. Please try again.",
           sender: "bot",
           timestamp: new Date(),
         }
@@ -157,13 +158,19 @@ they should consult with a qualified lawyer. Be concise but thorough in your res
                       : "bg-gray-200 text-gray-800 rounded-bl-none"
                   }`}
                 >
-                  {message.error && (
-                    <div className="flex items-center gap-1 mb-1">
-                      <AlertCircle className="w-3 h-3" />
-                      <p className="text-xs font-semibold">Error</p>
-                    </div>
+                  {message.error ? (
+                    <>
+                      <div className="flex items-center gap-1 mb-1">
+                        <AlertCircle className="w-3 h-3" />
+                        <p className="text-xs font-semibold">Error</p>
+                      </div>
+                      <p className="text-sm whitespace-pre-wrap">{message.text}</p>
+                    </>
+                  ) : message.sender === "bot" ? (
+                    <LegalMarkdownRenderer content={message.text} />
+                  ) : (
+                    <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                   )}
-                  <p className="text-sm whitespace-pre-wrap">{message.text}</p>
                   <p className={`text-xs mt-1 ${message.sender === "user" ? "text-blue-100" : "text-gray-600"}`}>
                     {message.timestamp.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                   </p>
