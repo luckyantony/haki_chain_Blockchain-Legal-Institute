@@ -14,6 +14,9 @@ import { exportToDocx, exportToPDF, sendToEmail, sendToHakiDocs } from "../lib/e
 import { toast } from "../../hooks/use-toast"
 import { formatLegalLetter, sanitizeLegalContent } from "../lib/legalFormatter"
 import { LegalMarkdownRenderer } from "../components/LegalMarkdownRenderer"
+import { motion, AnimatePresence } from "framer-motion"
+import { FullViewToggleButton } from "../components/FullViewToggleButton"
+import { useFullViewToggle } from "../hooks/useFullViewToggle"
 
 const documentCategories = [
   "General Documents",
@@ -58,6 +61,7 @@ export default function HakiDraft() {
     generatedDoc,
     error,
   } = draftState
+  const { isFullView, toggleFullView } = useFullViewToggle("hakidraft-full-view")
 
   useEffect(() => {
     console.log("[HakiDraft] mounted")
@@ -168,228 +172,247 @@ Generate the complete document now:`
     <div className="flex min-h-screen bg-gray-50">
       {showTour && <TourGuide onComplete={() => updateProcessState("hakiDraft", { showTour: false })} />}
       <LawyerSidebar onTourStart={() => updateProcessState("hakiDraft", { showTour: true })} />
-      <div className="flex-1 ml-[280px] p-8">
+      <motion.div className="flex-1 ml-[280px] p-8" layout>
         <div className="max-w-7xl mx-auto">
-          <div className="mb-8">
-            <div className="flex items-center gap-3 mb-2">
+          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between mb-8">
+            <div className="flex items-center gap-3">
               <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <Wand2 className="w-6 h-6 text-white" />
               </div>
-              <h1 className="text-2xl font-bold text-gray-900">AI Document Generator</h1>
+              <div>
+                <h1 className="text-2xl font-bold text-gray-900">AI Document Generator</h1>
+                <p className="text-gray-600">Generate professional legal documents with AI assistance</p>
+              </div>
             </div>
-            <p className="text-gray-600">Generate professional legal documents with AI assistance</p>
+            <FullViewToggleButton isFullView={isFullView} onToggle={toggleFullView} />
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-            <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
-              <h2 className="text-lg font-semibold text-gray-900">Document Configuration</h2>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="document-category">
-                  Document Category *
-                </label>
-                <select
-                  id="document-category"
-                  value={category}
-                  onChange={(e) =>
-                    updateProcessState("hakiDraft", {
-                      category: e.target.value,
-                      documentType: "",
-                    })
-                  }
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                >
-                  <option value="">Select document category</option>
-                  {documentCategories.map((cat) => (
-                    <option key={cat} value={cat}>
-                      {cat}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {category && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="document-type">
-                    Document Type *
-                  </label>
-                  <select
-                    id="document-type"
-                    value={documentType}
-                    onChange={(e) =>
-                      updateProcessState("hakiDraft", {
-                        documentType: e.target.value,
-                      })
-                    }
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+          <motion.div layout className="flex flex-col gap-8">
+            <motion.div layout className="flex flex-col lg:flex-row gap-8">
+              <AnimatePresence initial={false} mode="sync">
+                {!isFullView && (
+                  <motion.div
+                    key="hakidraft-config"
+                    layout
+                    initial={{ opacity: 0, x: -40 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -40 }}
+                    transition={{ duration: 0.4, ease: "easeInOut" }}
+                    className="w-full lg:w-1/2"
                   >
-                    <option value="">Select document type</option>
-                    {documentTypesByCategory[category]?.map((type) => (
-                      <option key={type} value={type}>
-                        {type}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
+                    <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
+                      <h2 className="text-lg font-semibold text-gray-900">Document Configuration</h2>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="client-name">
-                  Client Name *
-                </label>
-                <input
-                  id="client-name"
-                  type="text"
-                  value={clientName}
-                  onChange={(e) => updateProcessState("hakiDraft", { clientName: e.target.value })}
-                  placeholder="Enter client full name"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                />
-              </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="document-category">
+                          Document Category *
+                        </label>
+                        <select
+                          id="document-category"
+                          value={category}
+                          onChange={(e) => {
+                            updateProcessState("hakiDraft", {
+                              category: e.target.value,
+                              documentType: "",
+                            })
+                          }}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                        >
+                          <option value="">Select document category</option>
+                          {documentCategories.map((cat) => (
+                            <option key={cat} value={cat}>
+                              {cat}
+                            </option>
+                          ))}
+                        </select>
+                      </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="case-type">
-                  Case Type
-                </label>
-                <input
-                  id="case-type"
-                  type="text"
-                  value={caseType}
-                  onChange={(e) => updateProcessState("hakiDraft", { caseType: e.target.value })}
-                  placeholder="e.g., Civil, Criminal, Family Law"
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                />
-              </div>
+                      {category && (
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="document-type">
+                            Document Type *
+                          </label>
+                          <select
+                            id="document-type"
+                            value={documentType}
+                            onChange={(e) => updateProcessState("hakiDraft", { documentType: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                          >
+                            <option value="">Select document type</option>
+                            {documentTypesByCategory[category]?.map((type) => (
+                              <option key={type} value={type}>
+                                {type}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                      )}
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="case-description">
-                  Case Description
-                </label>
-                <textarea
-                  id="case-description"
-                  value={description}
-                  onChange={(e) => updateProcessState("hakiDraft", { description: e.target.value })}
-                  rows={4}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                ></textarea>
-              </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="client-name">
+                          Client Name *
+                        </label>
+                        <input
+                          id="client-name"
+                          type="text"
+                          value={clientName}
+                          onChange={(e) => updateProcessState("hakiDraft", { clientName: e.target.value })}
+                          placeholder="Enter client full name"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                        />
+                      </div>
 
-              <div>
-                <fieldset className="space-y-2">
-                  <legend className="block text-sm font-medium text-gray-700 mb-2">Jurisdiction</legend>
-                  {["Kenya", "Uganda", "Nigeria", "Ghana"].map((country) => (
-                    <label key={country} className="flex items-center">
-                      <input
-                        type="checkbox"
-                        checked={jurisdiction.includes(country)}
-                        onChange={() => handleJurisdictionToggle(country)}
-                        className="w-4 h-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded"
-                      />
-                      <span className="ml-2 text-sm text-gray-700">{country}</span>
-                    </label>
-                  ))}
-                </fieldset>
-              </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="case-type">
+                          Case Type
+                        </label>
+                        <input
+                          id="case-type"
+                          type="text"
+                          value={caseType}
+                          onChange={(e) => updateProcessState("hakiDraft", { caseType: e.target.value })}
+                          placeholder="e.g., Civil, Criminal, Family Law"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                        />
+                      </div>
 
-              <button
-                onClick={handleGenerate}
-                disabled={generating}
-                className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {generating ? "Generating..." : "Generate Document"}
-              </button>
-            </div>
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="case-description">
+                          Case Description
+                        </label>
+                        <textarea
+                          id="case-description"
+                          value={description}
+                          onChange={(e) => updateProcessState("hakiDraft", { description: e.target.value })}
+                          rows={4}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
+                        ></textarea>
+                      </div>
 
-            <div className="bg-white rounded-lg shadow-sm p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Generated Document</h2>
-              {error && (
-                <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h3 className="font-medium text-red-900 mb-1">Generation Error</h3>
-                      <p className="text-sm text-red-700">{error}</p>
-                      <p className="text-xs text-red-600 mt-2">Please check your API configuration in the .env file.</p>
+                      <div>
+                        <fieldset className="space-y-2">
+                          <legend className="block text-sm font-medium text-gray-700 mb-2">Jurisdiction</legend>
+                          {["Kenya", "Uganda", "Nigeria", "Ghana"].map((country) => (
+                            <label key={country} className="flex items-center">
+                              <input
+                                type="checkbox"
+                                checked={jurisdiction.includes(country)}
+                                onChange={() => handleJurisdictionToggle(country)}
+                                className="w-4 h-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded"
+                              />
+                              <span className="ml-2 text-sm text-gray-700">{country}</span>
+                            </label>
+                          ))}
+                        </fieldset>
+                      </div>
+
+                      <button
+                        onClick={handleGenerate}
+                        disabled={generating}
+                        className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {generating ? "Generating..." : "Generate Document"}
+                      </button>
                     </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              <motion.div
+                key="hakidraft-output"
+                layout
+                transition={{ duration: 0.4, ease: "easeInOut" }}
+                className={`w-full ${isFullView ? "" : "lg:w-1/2"}`}
+              >
+                <div className="bg-white rounded-lg shadow-sm p-6 h-full flex flex-col">
+                  <h2 className="text-lg font-semibold text-gray-900 mb-4">Generated Document</h2>
+                  {error && (
+                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                          <h3 className="font-medium text-red-900 mb-1">Generation Error</h3>
+                          <p className="text-sm text-red-700">{error}</p>
+                          <p className="text-xs text-red-600 mt-2">Please check your API configuration in the .env file.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex-1 bg-gray-50 border border-gray-200 rounded-lg p-6 overflow-y-auto">
+                    {generatedDoc ? (
+                      <LegalMarkdownRenderer content={generatedDoc} />
+                    ) : (
+                      <div className="flex flex-col items-center justify-center text-center py-16">
+                        <FileText className="w-16 h-16 text-gray-400 mb-4" />
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Generate</h3>
+                        <p className="text-sm text-gray-600">Fill in the form and click "Generate Document" to create your legal template.</p>
+                      </div>
+                    )}
                   </div>
+
+                  {generatedDoc && (
+                    <div className="mt-4 flex flex-col sm:flex-row gap-3">
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <button className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 font-medium transition">
+                            Export
+                          </button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent className="w-48">
+                          <DropdownMenuItem
+                            onClick={() => {
+                              console.log("[HakiDraft] Export as PDF")
+                              exportToPDF(generatedDoc, `${documentType || "hakidraft-document"}.pdf`)
+                              toast({ title: "Exported", description: "Document saved as PDF." })
+                            }}
+                          >
+                            <FileDown className="h-4 w-4" /> Export as PDF
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={async () => {
+                              console.log("[HakiDraft] Export as DOCX")
+                              await exportToDocx(generatedDoc, `${documentType || "hakidraft-document"}.docx`)
+                              toast({ title: "Exported", description: "Document saved as DOCX." })
+                            }}
+                          >
+                            <FileText className="h-4 w-4" /> Export as DOCX
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              console.log("[HakiDraft] Send to Email")
+                              const result = sendToEmail(generatedDoc)
+                              if (result.sent && result.email) {
+                                toast({ title: "Sent", description: `Document sent to ${result.email}` })
+                              }
+                            }}
+                          >
+                            <Mail className="h-4 w-4" /> Send to Email
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() => {
+                              console.log("[HakiDraft] Send to HakiDocs")
+                              sendToHakiDocs(generatedDoc)
+                              toast({ title: "Sent", description: "Sent to HakiDocs (dev mode)." })
+                            }}
+                          >
+                            <Share className="h-4 w-4" /> Send to HakiDocs
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                      <button
+                        onClick={() => updateProcessState("hakiDraft", { generatedDoc: "", error: null })}
+                        className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-              {generatedDoc ? (
-                <div>
-                  <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 max-h-[600px] overflow-y-auto">
-                    <LegalMarkdownRenderer content={generatedDoc} />
-                  </div>
-                  <div className="mt-4 flex gap-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 font-medium transition">
-                          Export
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (!generatedDoc) return
-                            console.log("[HakiDraft] Export as PDF")
-                            exportToPDF(generatedDoc, `${documentType || "hakidraft-document"}.pdf`)
-                            toast({ title: "Exported", description: "Document saved as PDF." })
-                          }}
-                        >
-                          <FileDown className="h-4 w-4" /> Export as PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={async () => {
-                            if (!generatedDoc) return
-                            console.log("[HakiDraft] Export as DOCX")
-                            await exportToDocx(generatedDoc, `${documentType || "hakidraft-document"}.docx`)
-                            toast({ title: "Exported", description: "Document saved as DOCX." })
-                          }}
-                        >
-                          <FileText className="h-4 w-4" /> Export as DOCX
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (!generatedDoc) return
-                            console.log("[HakiDraft] Send to Email")
-                            const result = sendToEmail(generatedDoc)
-                            if (result.sent) {
-                              toast({ title: "Sent", description: `Document sent to ${result.email}` })
-                            }
-                          }}
-                        >
-                          <Mail className="h-4 w-4" /> Send to Email
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            if (!generatedDoc) return
-                            console.log("[HakiDraft] Send to HakiDocs")
-                            sendToHakiDocs(generatedDoc)
-                            toast({ title: "Sent", description: "Sent to HakiDocs (dev mode)." })
-                          }}
-                        >
-                          <Share className="h-4 w-4" /> Send to HakiDocs
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                    <button
-                      onClick={() => updateProcessState("hakiDraft", { generatedDoc: "", error: null })}
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <FileText className="w-16 h-16 text-gray-400 mb-4" />
-                  <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Generate</h3>
-                  <p className="text-sm text-gray-600">Fill in the form and click "Generate Document" to create your legal template.</p>
-                </div>
-              )}
-            </div>
-          </div>
+              </motion.div>
+            </motion.div>
+          </motion.div>
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }
