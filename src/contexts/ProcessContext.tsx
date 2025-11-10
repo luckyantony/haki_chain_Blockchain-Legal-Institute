@@ -13,6 +13,16 @@ interface ChatMessage {
   error?: boolean
 }
 
+interface DraftVersion {
+  id: string
+  title: string
+  content: string
+  createdAt: string
+  templateId?: string
+  documentType?: string
+  approved?: boolean
+}
+
 interface HakiDraftState {
   showTour: boolean
   category: string
@@ -23,6 +33,11 @@ interface HakiDraftState {
   jurisdiction: string[]
   generating: boolean
   generatedDoc: string
+  editorContent: string
+  templateId?: string
+  versions: DraftVersion[]
+  lastSavedVersionId?: string | null
+  approvedVersionId?: string | null
   error: string | null
 }
 
@@ -92,6 +107,11 @@ const createInitialState = (): ProcessStore => ({
     jurisdiction: ["Kenya"],
     generating: false,
     generatedDoc: "",
+    editorContent: "",
+    templateId: undefined,
+    versions: [],
+    lastSavedVersionId: null,
+    approvedVersionId: null,
     error: null,
   },
   hakiLens: {
@@ -228,4 +248,5 @@ export type {
   HakiReviewState,
   ChatMessage,
   HakiBotTranscript,
+  DraftVersion,
 }

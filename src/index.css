@@ -229,3 +229,62 @@ body {
   font-size: 0.75rem;
   font-weight: 600;
 }
+
+.legal-editor {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.75rem;
+  min-height: 320px;
+  padding: 1.5rem;
+  color: #1f2937;
+  line-height: 1.7;
+  box-shadow: inset 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.legal-editor:focus-within {
+  border-color: #0f766e;
+  box-shadow: 0 0 0 4px rgba(15, 118, 110, 0.15);
+}
+
+.legal-editor--readonly {
+  background-color: #f1f5f9;
+}
+
+.legal-editor .ProseMirror {
+  outline: none;
+  min-height: 280px;
+  font-family: "Times New Roman", Georgia, serif;
+  font-size: 1.05rem;
+}
+
+.legal-editor .ProseMirror p {
+  margin: 0 0 1rem 0;
+}
+
+.legal-editor .ProseMirror h1,
+.legal-editor .ProseMirror h2,
+.legal-editor .ProseMirror h3 {
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 1.5rem 0 1rem 0;
+}
+
+.legal-editor .ProseMirror ul,
+.legal-editor .ProseMirror ol {
+  padding-left: 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.legal-editor .ProseMirror blockquote {
+  border-left: 3px solid rgba(15, 118, 110, 0.4);
+  padding-left: 1rem;
+  color: #0f172a;
+  background-color: rgba(15, 118, 110, 0.06);
+  font-style: italic;
+}
+
+.legal-editor .ProseMirror strong {
+  font-weight: 700;
+}

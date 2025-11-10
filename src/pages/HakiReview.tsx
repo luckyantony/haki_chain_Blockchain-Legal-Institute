@@ -333,8 +333,8 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                 <Eye className="w-6 h-6 text-white" />
               </div>
               <div>
-                <h1 className="text-2xl font-bold text-gray-900">HakiReview</h1>
-                <p className="text-gray-600">AI-powered document analysis and legal review</p>
+              <h1 className="text-2xl font-bold text-gray-900">HakiReview</h1>
+            <p className="text-gray-600">AI-powered document analysis and legal review</p>
               </div>
             </div>
             <FullViewToggleButton isFullView={isFullView} onToggle={toggleFullView} />
@@ -353,9 +353,9 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                     transition={{ duration: 0.4, ease: "easeInOut" }}
                     className="w-full lg:w-[55%]"
                   >
-                    <div className="bg-white rounded-lg shadow-sm p-8">
-                      <h2 className="text-lg font-semibold text-gray-900 mb-4">Document Preview</h2>
-                      {uploadedFile ? (
+            <div className="bg-white rounded-lg shadow-sm p-8">
+              <h2 className="text-lg font-semibold text-gray-900 mb-4">Document Preview</h2>
+              {uploadedFile ? (
                         <div className="space-y-4">
                           <div className="flex items-start justify-between gap-4">
                             <div>
@@ -381,7 +381,7 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                             </div>
                           )}
                           <div className="flex items-center justify-between">
-                            <button
+                  <button
                               onClick={() => {
                                 if (reviewState.uploadedFileUrl) {
                                   URL.revokeObjectURL(reviewState.uploadedFileUrl)
@@ -396,9 +396,9 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                                 }))
                               }}
                               className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition"
-                            >
-                              Remove File
-                            </button>
+                  >
+                    Remove File
+                  </button>
                             {reviewState.uploadedFileUrl && (
                               <a
                                 href={reviewState.uploadedFileUrl}
@@ -410,20 +410,20 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                               </a>
                             )}
                           </div>
-                        </div>
-                      ) : (
-                        <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
-                          <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                          <p className="text-gray-600 mb-2">Drag and drop your PDF, DOCX, or DOC file here</p>
-                          <p className="text-sm text-gray-500 mb-4">or click to browse</p>
-                          <label className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 cursor-pointer inline-block">
-                            Select File
-                            <input type="file" accept=".pdf,.docx,.doc" onChange={handleFileUpload} className="hidden" />
-                          </label>
-                          <p className="text-xs text-gray-500 mt-4">Supported formats: PDF, DOCX, DOC</p>
-                        </div>
-                      )}
-                    </div>
+                </div>
+              ) : (
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-12 text-center">
+                  <Upload className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-gray-600 mb-2">Drag and drop your PDF, DOCX, or DOC file here</p>
+                  <p className="text-sm text-gray-500 mb-4">or click to browse</p>
+                  <label className="px-6 py-2 bg-teal-600 text-white rounded-lg hover:bg-teal-700 cursor-pointer inline-block">
+                    Select File
+                    <input type="file" accept=".pdf,.docx,.doc" onChange={handleFileUpload} className="hidden" />
+                  </label>
+                  <p className="text-xs text-gray-500 mt-4">Supported formats: PDF, DOCX, DOC</p>
+                </div>
+              )}
+            </div>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -435,38 +435,38 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                 className={`w-full ${isFullView ? "" : "lg:flex-1"}`}
               >
                 <div className="bg-white rounded-lg shadow-sm p-6 h-full flex flex-col">
-                  <div className="flex gap-2 mb-4">
-                    <button
+              <div className="flex gap-2 mb-4">
+                <button
                       onClick={() => updateProcessState("hakiReview", { activeTab: "chat" })}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${
                         activeTab === "chat" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"
                       }`}
-                    >
-                      <MessageSquare className="w-4 h-4" />
-                      Chat
-                    </button>
-                    <button
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Chat
+                </button>
+                <button
                       onClick={() => updateProcessState("hakiReview", { activeTab: "edit" })}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${
                         activeTab === "edit" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"
                       }`}
-                    >
-                      <Edit className="w-4 h-4" />
-                      Edit
-                    </button>
-                    <button
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit
+                </button>
+                <button
                       onClick={() => updateProcessState("hakiReview", { activeTab: "esign" })}
                       className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium text-sm ${
                         activeTab === "esign" ? "bg-blue-100 text-blue-700" : "text-gray-700 hover:bg-gray-100"
                       }`}
-                    >
-                      <FileSignature className="w-4 h-4" />
-                      E-Sign
-                    </button>
-                  </div>
+                >
+                  <FileSignature className="w-4 h-4" />
+                  E-Sign
+                </button>
+              </div>
 
-                  {activeTab === "chat" && (
-                    <>
+              {activeTab === "chat" && (
+                <>
                       <div className="flex-1 overflow-y-auto space-y-3 pr-1">
                         {chatMessages.map((msg) => {
                           const isBotMessage = msg.sender === "bot" && !msg.error
@@ -528,7 +528,7 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                                 {annotation && (
                                   <div className="mt-2 rounded-lg border border-teal-200 bg-white/70 px-3 py-2 text-xs text-teal-900">
                                     {annotation}
-                                  </div>
+                  </div>
                                 )}
 
                                 {activeAnnotationId === msg.id && (
@@ -564,12 +564,12 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                       </div>
                       <div className="pt-4">
                         <div className="flex gap-2">
-                          <input
-                            type="text"
-                            value={message}
+                    <input
+                      type="text"
+                      value={message}
                             onChange={(e) => updateProcessState("hakiReview", { message: e.target.value })}
                             onKeyDown={(e) => e.key === "Enter" && handleSendMessage()}
-                            placeholder="Ask me about your document..."
+                      placeholder="Ask me about your document..."
                             className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                             disabled={isLoading}
                           />
@@ -581,26 +581,26 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                             <Send className="w-4 h-4" />
                           </button>
                         </div>
-                      </div>
-                    </>
-                  )}
+                  </div>
+                </>
+              )}
 
-                  {activeTab === "edit" && (
+              {activeTab === "edit" && (
                     <div className="text-center py-12">
-                      <Edit className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="font-medium text-gray-900 mb-2">Document Editor</h3>
-                      <p className="text-sm text-gray-600">Upload a document to start editing</p>
-                    </div>
-                  )}
-
-                  {activeTab === "esign" && (
-                    <div className="text-center py-12">
-                      <FileSignature className="w-12 h-12 text-gray-400 mx-auto mb-3" />
-                      <h3 className="font-medium text-gray-900 mb-2">Electronic Signature</h3>
-                      <p className="text-sm text-gray-600">Upload a document to add signatures</p>
-                    </div>
-                  )}
+                  <Edit className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="font-medium text-gray-900 mb-2">Document Editor</h3>
+                  <p className="text-sm text-gray-600">Upload a document to start editing</p>
                 </div>
+              )}
+
+              {activeTab === "esign" && (
+                    <div className="text-center py-12">
+                  <FileSignature className="w-12 h-12 text-gray-400 mx-auto mb-3" />
+                  <h3 className="font-medium text-gray-900 mb-2">Electronic Signature</h3>
+                  <p className="text-sm text-gray-600">Upload a document to add signatures</p>
+                </div>
+              )}
+            </div>
               </motion.div>
               <AnimatePresence initial={false} mode="sync">
                 {!isFullView && clauseEntries.length > 0 && (
@@ -631,14 +631,14 @@ Provide clear, accurate analysis and suggestions for legal documents. Base your 
                             <span className="text-[11px] text-gray-500">Clause reference • {index + 1}</span>
                           </button>
                         ))}
-                      </div>
-                    </div>
+          </div>
+        </div>
                   </motion.div>
                 )}
               </AnimatePresence>
             </motion.div>
           </motion.div>
-        </div>
+      </div>
       </motion.div>
     </div>
   )
