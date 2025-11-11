@@ -1,111 +1,22 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
-import LawyerSidebar from "../components/LawyerSidebar"
-import { Wand2, FileText, AlertCircle, FileDown, Mail, Share, History, Save, CheckCircle2 } from "lucide-react"
-import TourGuide from "../components/TourGuide"
-import { generateDocument } from "../lib/llm"
-import { useProcess, DraftVersion } from "../contexts/ProcessContext"
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "../../components/ui/dropdown-menu"
-import { exportToDocx, exportToPDF, sendToEmail, sendToHakiDocs } from "../lib/exporters"
-import { toast } from "../../hooks/use-toast"
-import { formatLegalLetter, sanitizeLegalContent } from "../lib/legalFormatter"
-import { motion, AnimatePresence } from "framer-motion"
-import { FullViewToggleButton } from "../components/FullViewToggleButton"
-import { useFullViewToggle } from "../hooks/useFullViewToggle"
-import { LegalRichEditor } from "../components/LegalRichEditor"
+import { useState, useEffect } from "react";
 
-const templatePresets = [
-  {
-    id: "lod-standard",
-    name: "Letter of Demand – Outstanding Invoices",
-    category: "Litigation",
-    documentType: "Letter of Demand",
-    summary:
-      "Standard letter of demand requiring payment of outstanding professional fees with notice of intended legal action.",
-    defaultDescription:
-      "Our firm has been instructed to demand settlement of the outstanding professional fees owing to our client.",
-    content: `HAKICHAIN ADVOCATES LLP
-1ST FLOOR, HAKI TOWERS, PARLIAMENT ROAD, NAIROBI
-P.O. BOX 12345-00100 NAIROBI | TEL: +254 700 000000 | EMAIL: INFO@HAKICHAIN.COM
+import { Wand2, FileText } from "lucide-react";
 
-11 July 2025
+const LawyerSidebar = ({ onTourStart }: { onTourStart: () => void }) => (
+  <div className="w-[280px] fixed h-full bg-gray-800 text-white p-4">
+    <h3 className="text-xl font-bold mb-6">HakiDraft Menu</h3>
+    <button onClick={onTourStart} className="text-blue-300 hover:text-blue-100">Start Tour</button>
+  </div>
+);
+const TourGuide = ({ onComplete }: { onComplete: () => void }) => (
+  <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center">
+    <div className="bg-white p-8 rounded-lg shadow-2xl">
+      <p>Welcome to the Tour Guide!</p>
+      <button onClick={onComplete} className="mt-4 bg-purple-600 text-white px-4 py-2 rounded">End Tour</button>
+    </div>
+  </div>
+);
 
-______________________________
-______________________________
-______________________________
-
-RE: OUTSTANDING PROFESSIONAL FEES
-
-1. TAKE NOTICE that you are lawfully indebted to our client in the sum of Kenya Shillings ___________ being outstanding professional fees for legal services rendered between ___________ and ___________.
-
-2. DESPITE repeated reminders and demand, the entire sum remains unpaid beyond the agreed payment period.
-
-3. WE ARE INSTRUCTED to demand, as we hereby do, immediate settlement of the aforesaid sum within seven (7) days from the date hereof together with any applicable interest pursuant to the retainer agreement.
-
-4. TAKE FURTHER NOTICE that in default of compliance we hold firm instructions to institute recovery proceedings without further reference to you and at your risk as to costs and consequences.
-
-Yours faithfully,
-
-______________________________
-For: HAKICHAIN ADVOCATES LLP`,
-  },
-  {
-    id: "nda-startup",
-    name: "Mutual NDA – Early Stage Venture",
-    category: "Corporate / Business",
-    documentType: "Non-Disclosure Agreement",
-    summary:
-      "Mutual non-disclosure agreement for preliminary commercial discussions between a start-up and investor.",
-    defaultDescription:
-      "Mutual NDA covering confidential information exchanged during preliminary venture and investment discussions.",
-    content: `HAKICHAIN ADVOCATES LLP
-1ST FLOOR, HAKI TOWERS, PARLIAMENT ROAD, NAIROBI
-P.O. BOX 12345-00100 NAIROBI | TEL: +254 700 000000 | EMAIL: INFO@HAKICHAIN.COM
-
-11 July 2025
-
-NON-DISCLOSURE AGREEMENT
-
-1. PARTIES: This Agreement is made between ____________________ of ____________________ ("Party A") and ____________________ of ____________________ ("Party B").
-
-2. PURPOSE: The Parties wish to explore a potential commercial relationship concerning ____________________ and anticipate disclosure of proprietary information.
-
-3. CONFIDENTIAL INFORMATION: Each Party undertakes to keep strictly confidential all non-public technical, financial, commercial or strategic information disclosed by the other Party in any form.
-
-4. OBLIGATIONS: Confidential Information shall be used solely for the Purpose, kept secure, disclosed only to personnel with a need to know, and returned or destroyed upon request.
-
-5. TERM: This Agreement commences on the Effective Date and remains in force for three (3) years. Obligations of confidentiality survive termination for a further three (3) years.
-
-6. GOVERNING LAW: This Agreement is governed by the laws of the Republic of Kenya and the Parties submit to the exclusive jurisdiction of the High Court of Kenya.
-
-SIGNED by the Parties on the date appearing above.
-
-______________________________
-Party A Signature
-
-______________________________
-Party B Signature`,
-  },
-]
-
-const formatTimestamp = (date: Date) =>
-  new Intl.DateTimeFormat("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  })
-    .format(date)
-
-const formatVersionLabel = (version: DraftVersion) => {
-  const date = new Date(version.createdAt)
-  return formatTimestamp(date)
-}
 
 const documentCategories = [
   "General Documents",
@@ -119,731 +30,537 @@ const documentCategories = [
   "Immigration",
   "Regulatory / Compliance",
   "Academic / Legal Research",
-]
+];
 
 const documentTypesByCategory: Record<string, string[]> = {
   "General Documents": ["Letter of Demand", "Affidavit", "Power of Attorney", "Statutory Declaration"],
-  "Litigation": ["Statement of Claim", "Statement of Defense", "Notice of Motion", "Submissions"],
+  Litigation: ["Statement of Claim", "Statement of Defense", "Notice of Motion", "Submissions"],
   "Corporate / Business": ["Memorandum of Association", "Articles of Association", "Shareholders Agreement", "Board Resolution"],
   "Real Estate / Property": ["Sale Agreement", "Lease Agreement", "Transfer Documents", "Charge Documents"],
   "Family Law": ["Divorce Petition", "Custody Agreement", "Maintenance Order", "Prenuptial Agreement"],
   "Succession / Estate": ["Will", "Grant of Probate", "Letters of Administration", "Succession Cause"],
   "Employment / Labor": ["Employment Contract", "Termination Letter", "Non-Disclosure Agreement", "Non-Compete Agreement"],
   "Intellectual Property": ["Trademark Application", "Patent Application", "Copyright Assignment", "License Agreement"],
-  "Immigration": ["Work Permit Application", "Visa Application", "Citizenship Application", "Appeal Letter"],
+  Immigration: ["Work Permit Application", "Visa Application", "Citizenship Application", "Appeal Letter"],
   "Regulatory / Compliance": ["Compliance Certificate", "Regulatory Submission", "Audit Report", "Complaint Response"],
   "Academic / Legal Research": ["Legal Opinion", "Research Memorandum", "Case Summary", "Legislative Brief"],
-}
+};
 
-export default function HakiDraft() {
-  const { getProcessState, updateProcessState } = useProcess()
-  const draftState = getProcessState("hakiDraft")
-  const {
-    showTour,
-    category,
-    documentType,
-    clientName,
-    caseType,
-    description,
-    jurisdiction,
-    generating,
-    generatedDoc,
-    editorContent,
-    templateId,
-    versions,
-    lastSavedVersionId,
-    approvedVersionId,
-    error,
-  } = draftState
-  const { isFullView, toggleFullView } = useFullViewToggle("hakidraft-full-view")
-  const [showHistory, setShowHistory] = useState(false)
+// Django Backend URLs
+const DJANGO_URL = "https://haki-backend-yy0c.onrender.com/documents/documents/";
+const WALLET_REGISTER_URL = "https://haki-backend-yy0c.onrender.com/documents/wallet/register/";
 
-  const selectedTemplate = useMemo(
-    () => templatePresets.find((template) => template.id === templateId),
-    [templateId]
-  )
-
-  const sortedVersions = useMemo(
-    () =>
-      [...versions].sort(
-        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-      ),
-    [versions]
-  )
-
-  const editorValue = editorContent ?? generatedDoc ?? ""
-  const hasEditorContent = editorValue.trim().length > 0
-
-  const handleTemplateSelect = useCallback(
-    (presetId: string) => {
-      if (!presetId) {
-        updateProcessState("hakiDraft", { templateId: undefined })
-        return
-      }
-
-      const template = templatePresets.find((preset) => preset.id === presetId)
-      if (!template) {
-        updateProcessState("hakiDraft", { templateId: undefined })
-        return
-      }
-
-      updateProcessState("hakiDraft", (prev) => ({
-        ...prev,
-        templateId: template.id,
-        category: template.category || prev.category,
-        documentType: template.documentType || prev.documentType,
-        description: template.defaultDescription || prev.description,
-        generatedDoc: template.content,
-        editorContent: template.content,
-        lastSavedVersionId: null,
-        approvedVersionId: null,
-        error: null,
-      }))
-
-      toast({
-        title: "Template loaded",
-        description: template.summary,
-      })
-    },
-    [updateProcessState]
-  )
-
-  const handleEditorChange = useCallback(
-    (nextValue: string) => {
-      updateProcessState("hakiDraft", { editorContent: nextValue })
-    },
-    [updateProcessState]
-  )
-
-  const handleSaveVersion = useCallback(
-    (options?: { silent?: boolean }) => {
-      let savedId: string | undefined
-      let contentEmpty = false
-      updateProcessState("hakiDraft", (prev) => {
-        const contentToSave = (prev.editorContent || prev.generatedDoc || "").trim()
-        if (!contentToSave) {
-          contentEmpty = true
-          return prev
-        }
-
-        const now = new Date()
-        const id = `${now.getTime()}`
-        const versionTitle = `${prev.documentType || "Draft"} · ${formatTimestamp(now)}`
-        const newVersion: DraftVersion = {
-          id,
-          title: versionTitle,
-          content: contentToSave,
-          createdAt: now.toISOString(),
-          templateId: prev.templateId,
-          documentType: prev.documentType,
-          approved: false,
-        }
-
-        savedId = id
-
-        return {
-          ...prev,
-          versions: [newVersion, ...prev.versions],
-          lastSavedVersionId: id,
-        }
-      })
-
-      if (contentEmpty) {
-        toast({
-          title: "Nothing to save",
-          description: "Generate or edit the draft before saving a version.",
-        })
-        return undefined
-      }
-
-      if (savedId && !options?.silent) {
-        toast({
-          title: "Version saved",
-          description: "Snapshot added to the history timeline.",
-        })
-      }
-
-      return savedId
-    },
-    [updateProcessState]
-  )
-
-  const handleRestoreVersion = useCallback(
-    (versionId: string) => {
-      const version = versions.find((entry) => entry.id === versionId)
-      if (!version) return
-
-      updateProcessState("hakiDraft", (prev) => ({
-        ...prev,
-        editorContent: version.content,
-        generatedDoc: version.content,
-        lastSavedVersionId: versionId,
-      }))
-
-      toast({
-        title: "Version restored",
-        description: version.title,
-      })
-    },
-    [updateProcessState, versions]
-  )
-
-  const handleMarkApproved = useCallback(() => {
-    let targetVersionId = lastSavedVersionId
-    if (!targetVersionId) {
-      targetVersionId = handleSaveVersion({ silent: true })
-    }
-
-    if (!targetVersionId) return
-
-    updateProcessState("hakiDraft", (prev) => ({
-      ...prev,
-      approvedVersionId: targetVersionId,
-      versions: prev.versions.map((version) =>
-        version.id === targetVersionId
-          ? { ...version, approved: true }
-          : { ...version, approved: false }
-      ),
-    }))
-
-    toast({
-      title: "Version approved",
-      description: "Marked as the client-ready draft.",
-    })
-    setShowHistory(true)
-  }, [handleSaveVersion, lastSavedVersionId, updateProcessState])
+export default function HakiDraft({ caseData }: { caseData?: any }) {
+  const [showTour, setShowTour] = useState(false);
+  const [category, setCategory] = useState("");
+  const [documentType, setDocumentType] = useState("");
+  const [clientName, setClientName] = useState("");
+  const [caseType, setCaseType] = useState("");
+  const [description, setDescription] = useState(
+    caseData
+      ? `Suspect URL: ${caseData.metadata?.url}\n\nExcerpt:\n${caseData.metadata?.excerpt || "N/A"}`
+      : ""
+  );
+  const [jurisdiction, setJurisdiction] = useState("Kenya");
+  const [requirements, setRequirements] = useState("");
+  const [generatedDoc, setGeneratedDoc] = useState("");
+  const [aiOutput, setAiOutput] = useState<string | null>(null);
+  const [walletAddress, setWalletAddress] = useState<string | null>(null);
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [showDrafts, setShowDrafts] = useState(true);
+  const [showAI, setShowAI] = useState(false);
 
   useEffect(() => {
-    console.log("[HakiDraft] mounted")
-    return () => {
-      console.log("[HakiDraft] unmounted")
-    }
-  }, [])
+    if (caseData) {
+      console.log(" Case data loaded:", caseData);
+      // NOTE: Replaced standard alert() with a console warning as alert() is discouraged in iframes
+      console.warn(
+        'Case data imported from Cases — review details and click "Generate AI Draft" to proceed.'
+      );
 
-  useEffect(() => {
-    console.log("[HakiDraft] state updated", draftState)
-  }, [draftState])
+      const caseCategory = caseData.metadata?.case_type || "";
+      const caseDocType = caseData.metadata?.document_type || "";
+
+      if (documentCategories.includes(caseCategory)) {
+        console.log(" Setting category:", caseCategory);
+        setCategory(caseCategory);
+
+        if (documentTypesByCategory[caseCategory]?.includes(caseDocType)) {
+          console.log(" Setting documentType:", caseDocType);
+          setDocumentType(caseDocType);
+        }
+      }
+    }
+  }, [caseData]);
 
   const handleJurisdictionToggle = (country: string) => {
-    updateProcessState("hakiDraft", (prev) => {
-      const hasCountry = prev.jurisdiction.includes(country)
-      const nextJurisdiction = hasCountry
-        ? prev.jurisdiction.filter((c) => c !== country)
-        : [...prev.jurisdiction, country]
+    console.log(" Toggling jurisdiction:", country);
+    setJurisdiction((prev) =>
+      prev.includes(country) ? prev.replace(country, "") : prev + (prev ? ", " : "") + country
+    );
+  };
 
-      return {
-        ...prev,
-        jurisdiction: nextJurisdiction,
-      }
-    })
-  }
-
-  const handleGenerate = async () => {
-    if (!category || !documentType || !clientName) {
-      alert("Please fill in required fields (Category, Document Type, and Client Name)")
-      return
+  const connectWallet = async () => {
+    console.log(" Connecting wallet...");
+    if (!(window as any).ethereum) {
+      console.warn(" MetaMask not detected");
+      // NOTE: Replaced standard alert() with a console warning
+      console.warn("Please install MetaMask.");
+      return;
     }
-
-    updateProcessState("hakiDraft", {
-      generating: true,
-      error: null,
-      generatedDoc: "",
-    })
-
     try {
-      const prompt = `Generate a professional legal document with the following specifications:
-
-Document Type: ${documentType}
-Category: ${category}
-Jurisdiction(s): ${jurisdiction.join(", ")}
-Client Name: ${clientName}
-${caseType ? `Case Type: ${caseType}` : ""}
-${description ? `Case Description: ${description}` : ""}
-
-Requirements:
-1. Generate a complete, professionally formatted ${documentType} document
-2. Include all standard clauses and provisions relevant to ${category}
-3. Ensure compliance with ${jurisdiction.join(" and ")} legal requirements
-4. Include proper headers, date (${new Date().toLocaleDateString()}), and client information
-5. Make the document ready for use by legal professionals
-6. Include placeholders where specific details need to be filled in (e.g., [PARTY NAME], [AMOUNT], [DATE])
-7. Follow proper legal document structure and formatting
-
-Generate the complete document now:`
-
-      const response = await generateDocument(prompt)
-
-      if (response.error) {
-        updateProcessState("hakiDraft", {
-          error: response.error,
-          generatedDoc: "",
-        })
-      } else if (response.content) {
-        const sanitized = sanitizeLegalContent(response.content)
-        const formattedDoc = formatLegalLetter({
-          documentTitle: documentType || "Legal Document",
-          firmName: undefined,
-          firmAddress: undefined,
-          firmContact: undefined,
-          recipientName: clientName || undefined,
-          recipientAddress: description || undefined,
-          subject: caseType || documentType,
-          body: sanitized,
-          signerName: "____________________",
-          signerTitle: "For: ____________________",
-        })
-
-        updateProcessState("hakiDraft", (prev) => {
-          const now = new Date()
-          const versionId = `${now.getTime()}`
-          const versionTitle = `${documentType || prev.documentType || "Draft"} · ${formatTimestamp(now)}`
-          const newVersion: DraftVersion = {
-            id: versionId,
-            title: versionTitle,
-            content: formattedDoc,
-            createdAt: now.toISOString(),
-            templateId: prev.templateId,
-            documentType: documentType || prev.documentType,
-            approved: false,
-          }
-
-          return {
-            ...prev,
-            generatedDoc: formattedDoc,
-            editorContent: formattedDoc,
-            error: null,
-            versions: [newVersion, ...prev.versions],
-            lastSavedVersionId: versionId,
-            approvedVersionId: null,
-          }
-        })
-      } else {
-        updateProcessState("hakiDraft", {
-          error: "No content generated. Please try again.",
-          generatedDoc: "",
-        })
-      }
+      const accounts = await (window as any).ethereum.request({ method: "eth_requestAccounts" });
+      const wallet = accounts[0];
+      console.log(" Wallet connected:", wallet);
+      setWalletAddress(wallet);
+      await fetchDrafts(wallet);
     } catch (err) {
-      updateProcessState("hakiDraft", {
-        error:
-          err instanceof Error
-            ? err.message
-            : "An unexpected error occurred. Please check your API configuration.",
-        generatedDoc: "",
-      })
-    } finally {
-      updateProcessState("hakiDraft", {
-        generating: false,
-      })
+      console.error("❌ Wallet connection failed:", err);
     }
+  };
+
+  const fetchDrafts = async (wallet: string) => {
+  try {
+    const res = await fetch(`${DJANGO_URL}?doc_type=draft&wallet=${wallet}`, {
+      credentials: "include",
+    });
+    if (!res.ok) throw new Error(`Error fetching drafts: ${res.status}`);
+    const data = await res.json();
+    setDocuments(data);
+
+    // Set AI output to most recent draft
+    if (data.length > 0) {
+      const latestDraft = data[0]; // assuming API returns newest first
+      setAiOutput(latestDraft.generated_text || "");
+      setGeneratedDoc(latestDraft.generated_text || "");
+    } else {
+      setAiOutput("");
+      setGeneratedDoc("");
+    }
+  } catch (err) {
+    console.error("fetchDrafts error:", err);
   }
+};
+
+
+  const signFile = async (file: File) => {
+    console.log("🖋️ Signing file:", file.name);
+    const arrayBuffer = await file.arrayBuffer();
+    const bytes = new Uint8Array(arrayBuffer);
+    const hex = "0x" + Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join("");
+    console.log("🔑 File hex prepared for signing");
+    return await (window as any).ethereum.request({ method: "personal_sign", params: [hex, walletAddress] });
+  };
+
+  const registerWalletDocument = async (file: File | null) => {
+    console.log("📎 Registering wallet document...");
+    if (!walletAddress || !file) {
+      console.warn("⚠️ Missing wallet or file");
+      return;
+    }
+    try {
+      const formData = new FormData();
+      formData.append("wallet", walletAddress);
+      formData.append("signature", await signFile(file));
+      formData.append("title", clientName || "Untitled");
+      formData.append("description", description);
+      formData.append("file", file);
+
+      const res = await fetch(WALLET_REGISTER_URL, {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      });
+      console.log("⬅️ Wallet register response status:", res.status);
+      if (!res.ok) throw new Error(`Wallet registration failed: ${res.status}`);
+      const data = await res.json();
+      console.log("✅ Wallet document registered:", data);
+      return data;
+    } catch (err) {
+      console.error("❌ registerWalletDocument error:", err);
+    }
+  };
+
+  const generateAIDraft = async () => {
+    console.log("⚙️ Generating AI draft...");
+    if (!walletAddress || !clientName || !category || !documentType) {
+      console.warn("⚠️ Missing required fields for AI draft");
+      // NOTE: Replaced standard alert()
+      console.warn("Please fill all required fields: Client Name, Category, Document Type.");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        title: documentType,
+        description,
+        doc_type: "draft",
+        category,
+        jurisdiction,
+        requirements: requirements ? JSON.parse(requirements) : {},
+        client_name: clientName,
+        wallet: walletAddress,
+        ...(caseData ? { case_id: caseData.id } : {}),
+      };
+      console.log("📤 AI draft payload:", payload);
+
+      const res = await fetch(DJANGO_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      console.log("⬅ AI draft response status:", res.status);
+
+      if (!res.ok) throw new Error(`AI generation failed: ${res.status}`);
+      const data = await res.json();
+      console.log(" AI draft generated:", data);
+
+      const generated = data.generated_text || data.output || "AI generation complete (no text returned).";
+      setAiOutput(generated);
+      setGeneratedDoc(generated);
+      setShowAI(true);
+      await fetchDrafts(walletAddress);
+    } catch (err) {
+      console.error("❌ Error generating AI draft:", err);
+      // NOTE: Replaced standard alert()
+      console.warn("Error generating AI draft. Check console for details.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const saveDraft = async () => {
+    console.log("💾 Saving draft...");
+    if (!walletAddress || !clientName) {
+      console.warn("⚠️ Wallet or clientName missing for saveDraft");
+      // NOTE: Replaced standard alert()
+      console.warn("Please connect wallet and fill client name.");
+      return;
+    }
+    setLoading(true);
+    try {
+      const payload = {
+        title: documentType,
+        description: aiOutput || description,
+        doc_type: "draft",
+        category,
+        jurisdiction,
+        requirements: requirements ? JSON.parse(requirements) : {},
+        client_name: clientName,
+        wallet: walletAddress,
+        ...(caseData ? { case_id: caseData.id } : {}),
+      };
+      console.log("📤 Save draft payload:", payload);
+
+      const res = await fetch(DJANGO_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include",
+      });
+      console.log("⬅️ Save draft response status:", res.status);
+
+      if (!res.ok) throw new Error(`Failed to save draft: ${res.status}`);
+      await fetchDrafts(walletAddress);
+      console.log("✅ Draft saved successfully");
+      // NOTE: Replaced standard alert()
+      console.log("Draft saved successfully!");
+    } catch (err) {
+      console.error("❌ Error saving draft:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   return (
     <div className="flex min-h-screen bg-gray-50">
-      {showTour && <TourGuide onComplete={() => updateProcessState("hakiDraft", { showTour: false })} />}
-      <LawyerSidebar onTourStart={() => updateProcessState("hakiDraft", { showTour: true })} />
-      <motion.div className="flex-1 ml-[280px] p-8" layout>
+      {showTour && <TourGuide onComplete={() => setShowTour(false)} />}
+      {/* Assuming LawyerSidebar exists */}
+      {/* <LawyerSidebar onTourStart={() => setShowTour(true)} /> */}
+      <div className="flex-1 ml-[280px] p-8">
         <div className="max-w-7xl mx-auto">
-          <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between mb-8">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <Wand2 className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900">AI Document Generator</h1>
-                <p className="text-gray-600">Generate professional legal documents with AI assistance</p>
-              </div>
+          <div className="mb-8 flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-pink-500 to-purple-600 rounded-lg flex items-center justify-center">
+              <Wand2 className="w-6 h-6 text-white" />
             </div>
-            <FullViewToggleButton isFullView={isFullView} onToggle={toggleFullView} />
+            <h1 className="text-2xl font-bold text-gray-900">HakiDraft AI Generator</h1>
           </div>
 
-          <motion.div layout className="flex flex-col gap-8">
-            <motion.div layout className="flex flex-col lg:flex-row gap-8">
-              <AnimatePresence initial={false} mode="sync">
-                {!isFullView && (
-                  <motion.div
-                    key="hakidraft-config"
-                    layout
-                    initial={{ opacity: 0, x: -40 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -40 }}
-                    transition={{ duration: 0.4, ease: "easeInOut" }}
-                    className="w-full lg:w-1/2"
+          {!walletAddress ? (
+            <button
+              className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded shadow-md transition duration-150 ease-in-out mb-4"
+              onClick={connectWallet}
+            >
+              Connect Wallet
+            </button>
+          ) : (
+            <div className="text-green-600 mb-4 font-medium">
+              ✅ Wallet Connected: <span className="font-mono text-sm">{walletAddress}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            <div className="bg-white p-6 rounded-lg shadow-sm space-y-4">
+              <h2 className="text-xl font-semibold border-b pb-2 mb-2">Document Details</h2>
+              <div>
+                <label className="block mb-1 font-medium">
+                  Document Category <span className="text-red-500">*</span>
+                </label>
+                <select
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  value={category}
+                  onChange={(e) => {
+                    setCategory(e.target.value);
+                    setDocumentType("");
+                  }}
+                >
+                  <option value="">Select category</option>
+                  {documentCategories.map((cat) => (
+                    <option key={cat} value={cat}>
+                      {cat}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {category && (
+                <div>
+                  <label className="block mb-1 font-medium">
+                    Document Type <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                    value={documentType}
+                    onChange={(e) => setDocumentType(e.target.value)}
                   >
-                    <div className="bg-white rounded-lg shadow-sm p-6 space-y-6">
-                      <h2 className="text-lg font-semibold text-gray-900">Document Configuration</h2>
+                    <option value="">Select type</option>
+                    {documentTypesByCategory[category]?.map((type) => (
+                      <option key={type} value={type}>
+                        {type}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="template-preset">
-                          Load Template
-                        </label>
-                        <select
-                          id="template-preset"
-                          value={templateId ?? ""}
-                          onChange={(e) => handleTemplateSelect(e.target.value)}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        >
-                          <option value="">Select a preset (optional)</option>
-                          {templatePresets.map((preset) => (
-                            <option key={preset.id} value={preset.id}>
-                              {preset.name}
-                            </option>
-                          ))}
-                        </select>
-                        {selectedTemplate && (
-                          <p className="mt-2 text-xs text-gray-500 leading-relaxed">{selectedTemplate.summary}</p>
-                        )}
-                      </div>
+              <div>
+                <label className="block mb-1 font-medium">
+                  Client Name <span className="text-red-500">*</span>
+                </label>
+                <input
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  type="text"
+                  value={clientName}
+                  onChange={(e) => setClientName(e.target.value)}
+                  placeholder="Enter client name"
+                />
+              </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="document-category">
-                          Document Category *
-                        </label>
-                        <select
-                          id="document-category"
-                          value={category}
-                          onChange={(e) => {
-                            updateProcessState("hakiDraft", {
-                              category: e.target.value,
-                              documentType: "",
-                            })
-                          }}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        >
-                          <option value="">Select document category</option>
-                          {documentCategories.map((cat) => (
-                            <option key={cat} value={cat}>
-                              {cat}
-                            </option>
-                          ))}
-                        </select>
-                      </div>
+              <div>
+                <label className="block mb-1 font-medium">Case Type (Optional)</label>
+                <input
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  type="text"
+                  value={caseType}
+                  onChange={(e) => setCaseType(e.target.value)}
+                  placeholder="e.g., Civil, Family Law"
+                />
+              </div>
 
-                      {category && (
-                        <div>
-                          <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="document-type">
-                            Document Type *
-                          </label>
-                          <select
-                            id="document-type"
-                            value={documentType}
-                            onChange={(e) => updateProcessState("hakiDraft", { documentType: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                          >
-                            <option value="">Select document type</option>
-                            {documentTypesByCategory[category]?.map((type) => (
-                              <option key={type} value={type}>
-                                {type}
-                              </option>
-                            ))}
-                          </select>
-                        </div>
-                      )}
+              <div>
+                <label className="block mb-1 font-medium">Description (Key facts and instructions)</label>
+                <textarea
+                  className="w-full p-2 border border-gray-300 rounded focus:ring-blue-500 focus:border-blue-500"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={4}
+                  placeholder="e.g., Parties involved, core dispute, relief sought..."
+                />
+              </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="client-name">
-                          Client Name *
-                        </label>
-                        <input
-                          id="client-name"
-                          type="text"
-                          value={clientName}
-                          onChange={(e) => updateProcessState("hakiDraft", { clientName: e.target.value })}
-                          placeholder="Enter client full name"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
+              <div>
+                <label className="block mb-1 font-medium">Jurisdiction</label>
+                <div className="flex flex-wrap gap-4">
+                  {["Kenya", "Uganda", "Nigeria", "Ghana"].map((c) => (
+                    <label key={c} className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={jurisdiction.includes(c)}
+                        onChange={() => handleJurisdictionToggle(c)}
+                        className="form-checkbox text-blue-600 rounded"
+                      />
+                      {c}
+                    </label>
+                  ))}
+                </div>
+              </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="case-type">
-                          Case Type
-                        </label>
-                        <input
-                          id="case-type"
-                          type="text"
-                          value={caseType}
-                          onChange={(e) => updateProcessState("hakiDraft", { caseType: e.target.value })}
-                          placeholder="e.g., Civil, Criminal, Family Law"
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        />
-                      </div>
+              <div>
+                <label className="block mb-1 font-medium">Requirements JSON (optional, advanced)</label>
+                <textarea
+                  className="w-full p-2 border border-gray-300 rounded font-mono text-sm focus:ring-blue-500 focus:border-blue-500"
+                  value={requirements}
+                  onChange={(e) => setRequirements(e.target.value)}
+                  rows={3}
+                  placeholder='e.g., {"clause_type": "indemnity"}'
+                />
+              </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2" htmlFor="case-description">
-                          Case Description
-                        </label>
-                        <textarea
-                          id="case-description"
-                          value={description}
-                          onChange={(e) => updateProcessState("hakiDraft", { description: e.target.value })}
-                          rows={4}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-pink-500"
-                        ></textarea>
-                      </div>
+              <div className="flex gap-2 pt-4 border-t">
+                <button
+                  className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold transition"
+                  onClick={generateAIDraft}
+                  disabled={loading || !walletAddress}
+                >
+                  {loading ? "Generating..." : "Generate AI Draft"}
+                </button>
+                <button
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded font-semibold transition"
+                  onClick={saveDraft}
+                  disabled={loading || !walletAddress}
+                >
+                  Save Draft
+                </button>
+                <button
+                  className="bg-gray-400 hover:bg-gray-500 text-white px-4 py-2 rounded font-semibold transition"
+                  onClick={() => setShowDrafts(!showDrafts)}
+                >
+                  {showDrafts ? "Hide Drafts" : "Show Drafts"}
+                </button>
+              </div>
+            </div>
 
-                      <div>
-                        <fieldset className="space-y-2">
-                          <legend className="block text-sm font-medium text-gray-700 mb-2">Jurisdiction</legend>
-                          {["Kenya", "Uganda", "Nigeria", "Ghana"].map((country) => (
-                            <label key={country} className="flex items-center">
-                              <input
-                                type="checkbox"
-                                checked={jurisdiction.includes(country)}
-                                onChange={() => handleJurisdictionToggle(country)}
-                                className="w-4 h-4 text-pink-600 focus:ring-pink-500 border-gray-300 rounded"
-                              />
-                              <span className="ml-2 text-sm text-gray-700">{country}</span>
-                            </label>
-                          ))}
-                        </fieldset>
-                      </div>
-
-                      <button
-                        onClick={handleGenerate}
-                        disabled={generating}
-                        className="w-full py-3 bg-gradient-to-r from-pink-500 to-purple-600 text-white rounded-lg font-medium hover:from-pink-600 hover:to-purple-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
-                      >
-                        {generating ? "Generating..." : "Generate Document"}
-                      </button>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              <motion.div
-                key="hakidraft-output"
-                layout
-                transition={{ duration: 0.4, ease: "easeInOut" }}
-                className={`w-full ${isFullView ? "" : "lg:w-1/2"}`}
-              >
-                <div className="bg-white rounded-lg shadow-sm p-6 h-full flex flex-col">
-                  <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                    <div>
-                      <h2 className="text-lg font-semibold text-gray-900">Draft Workspace</h2>
-                      {selectedTemplate && (
-                        <p className="text-sm text-gray-500">Template: {selectedTemplate.name}</p>
-                      )}
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      <button
-                        onClick={() => handleSaveVersion()}
-                        disabled={!hasEditorContent}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-teal-400 hover:text-teal-600 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <Save className="h-4 w-4" />
-                        Save Version
-                      </button>
-                      <button
-                        onClick={handleMarkApproved}
-                        disabled={!hasEditorContent}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-teal-400 hover:text-teal-600 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        <CheckCircle2 className="h-4 w-4" />
-                        Mark Approved
-                      </button>
-                      <button
-                        onClick={() => setShowHistory((prev) => !prev)}
-                        className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs font-medium text-gray-600 hover:border-teal-400 hover:text-teal-600"
-                      >
-                        <History className="h-4 w-4" />
-                        {showHistory ? "Hide History" : "Version History"}
-                      </button>
-                    </div>
-                  </div>
-                  {error && (
-                    <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-4">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                        <div>
-                          <h3 className="font-medium text-red-900 mb-1">Generation Error</h3>
-                          <p className="text-sm text-red-700">{error}</p>
-                          <p className="text-xs text-red-600 mt-2">Please check your API configuration in the .env file.</p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                  <div className="flex-1">
-                    {hasEditorContent ? (
-                      <LegalRichEditor value={editorValue} onChange={handleEditorChange} />
-                    ) : (
-                      <div className="flex flex-col items-center justify-center text-center py-16 border border-dashed border-gray-300 rounded-lg bg-gray-50">
-                        <FileText className="w-16 h-16 text-gray-400 mb-4" />
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">Ready to Generate</h3>
-                        <p className="text-sm text-gray-600">
-                          Fill in the form, load a template, or begin drafting directly in the editor.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col sm:flex-row gap-3">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <button
-                          className="flex-1 px-4 py-2 bg-gradient-to-r from-teal-600 to-blue-600 text-white rounded-lg hover:from-teal-700 hover:to-blue-700 font-medium transition disabled:cursor-not-allowed disabled:opacity-60"
-                          disabled={!hasEditorContent}
-                        >
-                          Export
-                        </button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent className="w-48">
-                        <DropdownMenuItem
-                          onClick={() => {
-                            const content = editorValue.trim()
-                            if (!content) {
-                              toast({
-                                title: "Nothing to export",
-                                description: "Add or generate content before exporting.",
-                              })
-                              return
-                            }
-                            exportToPDF(content, `${documentType || "hakidraft-document"}.pdf`)
-                            toast({ title: "Exported", description: "Document saved as PDF." })
-                          }}
-                        >
-                          <FileDown className="h-4 w-4" /> Export as PDF
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={async () => {
-                            const content = editorValue.trim()
-                            if (!content) {
-                              toast({
-                                title: "Nothing to export",
-                                description: "Add or generate content before exporting.",
-                              })
-                              return
-                            }
-                            await exportToDocx(content, `${documentType || "hakidraft-document"}.docx`)
-                            toast({ title: "Exported", description: "Document saved as DOCX." })
-                          }}
-                        >
-                          <FileText className="h-4 w-4" /> Export as DOCX
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            const content = editorValue.trim()
-                            if (!content) {
-                              toast({
-                                title: "Nothing to send",
-                                description: "Add or generate content before sending.",
-                              })
-                              return
-                            }
-                            const result = sendToEmail(content)
-                            if (result.sent && result.email) {
-                              toast({ title: "Sent", description: `Document sent to ${result.email}` })
-                            }
-                          }}
-                        >
-                          <Mail className="h-4 w-4" /> Send to Email
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          onClick={() => {
-                            const content = editorValue.trim()
-                            if (!content) {
-                              toast({
-                                title: "Nothing to send",
-                                description: "Add or generate content before sending.",
-                              })
-                              return
-                            }
-                            sendToHakiDocs(content)
-                            toast({ title: "Sent", description: "Sent to HakiDocs (dev mode)." })
-                          }}
-                        >
-                          <Share className="h-4 w-4" /> Send to HakiDocs
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+            <div className="bg-white p-6 rounded-lg shadow-xl border border-gray-200 h-[600px] overflow-y-auto">
+              <h2 className="text-xl font-semibold border-b pb-2 mb-4 text-purple-600">Your AI Draft</h2>
+              {aiOutput ? (
+                <div className="flex flex-col h-full">
+                  <pre className="text-sm whitespace-pre-wrap font-mono p-3 bg-gray-50 border rounded flex-grow overflow-auto mb-4">
+                    {aiOutput}
+                  </pre>
+                  <div className="flex gap-2 mt-auto">
+                    <button className="flex-1 bg-teal-600 hover:bg-teal-700 text-white px-4 py-2 rounded font-semibold transition">
+                      Download PDF
+                    </button>
+                    <button className="flex-1 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded font-semibold transition">
+                      Download DOCX
+                    </button>
                     <button
-                      onClick={() =>
-                        updateProcessState("hakiDraft", (prev) => ({
-                          ...prev,
-                          generatedDoc: "",
-                          editorContent: "",
-                          error: null,
-                          lastSavedVersionId: null,
-                          approvedVersionId: null,
-                        }))
-                      }
-                      className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-medium"
+                      className="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-700 px-4 py-2 rounded font-semibold transition"
+                      onClick={() => {
+                        setAiOutput(null);
+                        setGeneratedDoc("");
+                      }}
                     >
                       Clear
                     </button>
                   </div>
-
-                  <AnimatePresence initial={false}>
-                    {showHistory && (
-                      <motion.div
-                        key="history"
-                        initial={{ opacity: 0, y: -6 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -6 }}
-                        transition={{ duration: 0.2, ease: "easeOut" }}
-                        className="border border-gray-200 rounded-lg bg-gray-50 p-4 max-h-72 overflow-y-auto space-y-3"
-                      >
-                        <div className="flex items-center justify-between">
-                          <p className="text-sm font-semibold text-gray-800">Version History</p>
-                          <button
-                            onClick={() => setShowHistory(false)}
-                            className="text-xs text-gray-500 hover:text-gray-700"
-                          >
-                            Close
-                          </button>
-                        </div>
-                        {sortedVersions.length === 0 ? (
-                          <p className="text-xs text-gray-500">No saved versions yet.</p>
-                        ) : (
-                          sortedVersions.map((version) => {
-                            const isLatest = version.id === lastSavedVersionId
-                            const isApproved = version.id === approvedVersionId
-                            return (
-                              <div
-                                key={version.id}
-                                className={`rounded-lg border px-3 py-3 text-sm shadow-sm ${
-                                  isApproved
-                                    ? "border-teal-500 bg-teal-50"
-                                    : isLatest
-                                    ? "border-blue-300 bg-blue-50"
-                                    : "border-gray-200 bg-white"
-                                }`}
-                              >
-                                <div className="flex flex-col gap-1">
-                                  <div className="flex items-start justify-between gap-3">
-                                    <div>
-                                      <p className="font-semibold text-gray-900">{version.title}</p>
-                                      <p className="text-xs text-gray-500">{formatVersionLabel(version)}</p>
-                                    </div>
-                                    <button
-                                      onClick={() => handleRestoreVersion(version.id)}
-                                      className="text-xs font-medium text-teal-700 hover:text-teal-900"
-                                    >
-                                      Restore
-                                    </button>
-                                  </div>
-                                  <p className="text-xs text-gray-600 overflow-hidden text-ellipsis">
-                                    {version.content.split("\\n").find((line) => line.trim().length > 0)?.slice(0, 160) ||
-                                      "—"}
-                                  </p>
-                                  {isApproved && (
-                                    <p className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-teal-700">
-                                      <CheckCircle2 className="h-3.5 w-3.5" /> Approved version
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            )
-                          })
-                        )}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
                 </div>
-              </motion.div>
-            </motion.div>
-          </motion.div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center text-gray-500 h-full">
+                  <FileText className="w-16 h-16 mb-4 text-gray-400" />
+                  <p className="text-lg">Your generated legal draft will appear here.</p>
+                  <p className="text-sm mt-2">
+                    Fill the form, ensure your wallet is connected, and click "Generate AI Draft".
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
-      </motion.div>
+
+        {showDrafts && documents.length > 0 && (
+          <div className="mt-8 bg-white p-6 rounded-lg shadow-xl border border-gray-100">
+            <h2 className="text-2xl font-bold mb-4 text-gray-900">
+              📁 Your Drafts ({documents.length})
+            </h2>
+            <ul className="divide-y divide-gray-200">
+              {documents.map((doc) => (
+                <li key={doc.id} className="py-4 hover:bg-purple-50 rounded-lg transition duration-150 ease-in-out px-2">
+                  <div className="flex justify-between items-start">
+                    <div className="flex flex-col">
+                      <span className="text-xl font-bold text-purple-700">{doc.title}</span>
+                      <p className="text-sm text-gray-600 mt-1 italic line-clamp-2">
+                        {/* Shortened description for clean list view */}
+                        {doc.description ? doc.description.substring(0, 150) + (doc.description.length > 150 ? "..." : "") : "No detailed description."}
+                      </p>
+                    </div>
+                    <a
+                      href={doc.file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:text-blue-800 font-semibold text-sm ml-4 flex-shrink-0"
+                    >
+                      View Document
+                    </a>
+                  </div>
+
+                  {/* Display Key Metadata Fields - Showing all key fields cleanly */}
+                  <div className="mt-3 grid grid-cols-2 md:grid-cols-4 gap-x-4 gap-y-2 text-xs text-gray-500">
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">Story ID:</span>
+                      <span className="font-mono">{doc.id}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">Agent Status</span>
+                      <span className={`font-mono font-semibold ${doc.agent_status === 'pending' ? 'text-yellow-600' : 'text-green-600'}`}>
+                        {doc.agent_status || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">Created At</span>
+                      <span className="font-mono">
+                        {doc.created_at ? new Date(doc.created_at).toLocaleString() : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">Document Type</span>
+                      <span className="font-mono">{doc.doc_type || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">User Wallet</span>
+                      <span className="font-mono overflow-hidden whitespace-nowrap text-ellipsis" title={doc.user}>
+                        {doc.user ? doc.user.split('@')[0] : 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">ICP ID</span>
+                      <span className="font-mono">{doc.icp_id || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">IPFS CID</span>
+                      <span className="font-mono overflow-hidden whitespace-nowrap text-ellipsis" title={doc.ipfs_cid}>
+                        {doc.ipfs_cid || 'N/A'}
+                      </span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">Tags</span>
+                      <span className="font-mono">{doc.tags && doc.tags.length > 0 ? doc.tags.join(', ') : 'None'}</span>
+                    </div>
+                    <div className="flex flex-col">
+                      <span className="font-bold text-gray-700">Constellation Hash:</span>
+                      <span className="font-mono">{doc.dag_tx || 'N/A'}</span>
+                    </div>
+                  </div>
+
+                  {/* Detailed, Raw Data Display - fulfills requirement to show ALL data */}
+                  <details className="mt-4 p-2 bg-gray-100 border border-gray-300 rounded-lg shadow-inner">
+                    <summary className="text-xs font-semibold text-gray-700 cursor-pointer hover:text-purple-600 transition">
+                      Show Draft (Click to expand)
+                    </summary>
+                    <pre className="text-[10px] whitespace-pre-wrap font-mono mt-2 p-1 max-h-40 overflow-y-auto bg-white border border-dashed border-gray-200 rounded">
+                    {doc.generated_text}
+                    </pre>
+                  </details>
+                  
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
     </div>
-  )
+  );
 }

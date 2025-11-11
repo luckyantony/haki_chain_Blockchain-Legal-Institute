@@ -1,173 +1,316 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { supabase, Bounty } from '../lib/supabase';
-import { Search, MapPin, Clock, DollarSign, Tag } from 'lucide-react';
+"use client";
+import { useEffect, useState } from "react";
+import { ethers } from "ethers";
+import HakiTokenABI from "../abis/HakiToken.json";
+import BountyRegistryABI from "../abis/BountyRegistry.json";
+
+declare global {
+  interface Window {
+    ethereum?: any;
+  }
+}
 
 export default function Bounties() {
-  const [bounties, setBounties] = useState<Bounty[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
+  const [provider, setProvider] = useState<ethers.BrowserProvider | null>(null);
+  const [signer, setSigner] = useState<ethers.Signer | null>(null);
+  const [account, setAccount] = useState("");
+  const [registry, setRegistry] = useState<any>(null);
+  const [allBounties, setAllBounties] = useState<any[]>([]);
+  const [isConnecting, setIsConnecting] = useState(false);
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    loadBounties();
-  }, []);
+  const CONTRACT_ADDRESS = import.meta.env.VITE_REGISTRY_ADDRESS;
+  const TOKEN_ADDRESS = import.meta.env.VITE_TOKEN_ADDRESS;
+  const PINATA_GATEWAY =
+    import.meta.env.VITE_PINATA_GATEWAY ?? "https://gateway.pinata.cloud/ipfs";
 
-  async function loadBounties() {
+  /*** NETWORK & WALLET ***/
+  const switchToSepolia = async () => {
+    console.log("switchToSepolia: Attempting to switch network...");
     try {
-      const { data, error } = await supabase
-        .from('bounties')
-        .select('*')
-        .eq('status', 'open')
-        .order('created_at', { ascending: false });
+      await window.ethereum.request({
+        method: "wallet_switchEthereumChain",
+        params: [{ chainId: "0xaa36a7" }],
+      });
+      console.log("switchToSepolia: Successfully switched network");
+    } catch (err: any) {
+      console.error("switchToSepolia: Error switching network", err);
+      if (err.code === 4902) {
+        try {
+          await window.ethereum.request({
+            method: "wallet_addEthereumChain",
+            params: [
+              {
+                chainId: "0xaa36a7",
+                chainName: "Sepolia Test Network",
+                rpcUrls: ["https://sepolia.infura.io/v3/YOUR_INFURA_KEY"],
+                nativeCurrency: { name: "Sepolia ETH", symbol: "ETH", decimals: 18 },
+                blockExplorerUrls: ["https://sepolia.etherscan.io"],
+              },
+            ],
+          });
+          console.log("switchToSepolia: Added Sepolia network successfully");
+        } catch (addErr) {
+          console.error("switchToSepolia: Failed to add Sepolia:", addErr);
+          alert("⚠️ Failed to add Sepolia network.");
+        }
+      } else {
+        alert("⚠️ Failed to switch to Sepolia.");
+      }
+    }
+  };
 
-      if (error) throw error;
-      setBounties(data || []);
-    } catch (error) {
-      console.error('Error loading bounties:', error);
+  const connectWallet = async () => {
+    console.log("connectWallet: Connecting...");
+    if (!window.ethereum) return alert("MetaMask not found");
+    try {
+      setIsConnecting(true);
+      const prov = new ethers.BrowserProvider(window.ethereum);
+      console.log("connectWallet: Provider initialized", prov);
+
+      await prov.send("eth_requestAccounts", []);
+      const sign = await prov.getSigner();
+      const addr = await sign.getAddress();
+      console.log("connectWallet: Connected account", addr);
+
+      const network = await prov.getNetwork();
+      console.log("connectWallet: Current network", network);
+      if (Number(network.chainId) !== 11155111) await switchToSepolia();
+
+      const registryContract = new ethers.Contract(
+        CONTRACT_ADDRESS,
+        BountyRegistryABI.abi,
+        sign
+      );
+      console.log("connectWallet: Registry contract initialized", registryContract);
+
+      setProvider(prov);
+      setSigner(sign);
+      setAccount(addr);
+      setRegistry(registryContract);
+
+      window.ethereum.on("accountsChanged", (accounts: string[]) => {
+        console.log("connectWallet: accountsChanged", accounts);
+        if (accounts.length === 0) setAccount("");
+        else setAccount(accounts[0]);
+      });
+      window.ethereum.on("chainChanged", () => {
+        console.log("connectWallet: chainChanged event detected, reloading page...");
+        window.location.reload();
+      });
+    } catch (err: any) {
+      console.error("connectWallet: Error connecting wallet", err);
+      alert("Wallet connection failed: " + err.message);
+    } finally {
+      setIsConnecting(false);
+    }
+  };
+
+  /*** FETCH BOUNTIES + DETAILS ***/
+  const fetchBounties = async () => {
+    if (!registry) {
+      console.warn("fetchBounties: Registry not initialized");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      console.log("fetchBounties: Fetching all bounties...");
+      const bounties = await registry.getAllBounties();
+      console.log("fetchBounties: Raw bounties fetched", bounties);
+
+      const formatted = await Promise.all(
+        bounties.map(async (b: any) => {
+          console.log("fetchBounties: Processing bounty", b.id);
+          let milestones: any[] = [];
+          let totalContributions = "0";
+
+          try {
+            const rawMilestones = await registry.getAllMilestones(b.id);
+            milestones = rawMilestones.map((m: any, idx: number) => ({
+              id: m.id ?? idx + 1,
+              amount: m.amount ?? m[0],
+              completed: m.completed ?? m[1],
+            }));
+            console.log(`fetchBounties: Milestones for bounty ${b.id}`, milestones);
+
+            const total = await registry.getTotalContributions(b.id);
+            totalContributions = ethers.formatEther(total);
+            console.log(`fetchBounties: Total contributions for bounty ${b.id}`, totalContributions);
+          } catch (err) {
+            console.warn(`fetchBounties: Could not fetch milestones or contributions for bounty ${b.id}`, err);
+          }
+
+          return {
+            id: Number(b.id),
+            ngo: b.ngo,
+            active: b.active,
+            lawyerSelected: b.lawyerSelected,
+            assignedLawyer: b.assignedLawyer,
+            milestones,
+            totalContributions,
+          };
+        })
+      );
+
+      console.log("fetchBounties: Formatted bounties", formatted);
+      setAllBounties(formatted);
+    } catch (err) {
+      console.error("fetchBounties: Error fetching bounties", err);
     } finally {
       setLoading(false);
     }
-  }
+  };
 
-  const filteredBounties = bounties.filter((bounty) => {
-    const matchesSearch =
-      bounty.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      bounty.description.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesCategory =
-      selectedCategory === 'All Categories' || bounty.category === selectedCategory;
-    return matchesSearch && matchesCategory;
-  });
+  /*** APPLY FOR A BOUNTY ***/
+  const applyForBounty = async (bountyId: number) => {
+    console.log("applyForBounty: Applying for bounty", bountyId);
+    if (!registry || !signer || !account) return alert("Connect wallet first");
 
-  const categories = ['All Categories', ...new Set(bounties.map((b) => b.category))];
+    try {
+      const [cid, payloadHash] = await registry.getLawyerIdentity(account);
+      console.log("applyForBounty: Lawyer identity", { cid, payloadHash });
+
+      if (!cid || payloadHash === ethers.ZeroHash)
+        return alert("⚠️ You must register your LSK first in Lawyer Dashboard.");
+
+      const proposal = {
+        summary: "I would like to take this bounty",
+        timestamp: Date.now(),
+      };
+      const proposalJSON = JSON.stringify(proposal);
+      const proposalDocHash = ethers.keccak256(
+        ethers.toUtf8Bytes(proposalJSON)
+      );
+      console.log("applyForBounty: Proposal doc hash", proposalDocHash);
+
+      const tx = await registry.applyForBounty(
+        bountyId,
+        cid,
+        proposalDocHash
+      );
+      console.log("applyForBounty: Transaction sent", tx);
+      await tx.wait();
+      console.log("applyForBounty: Transaction confirmed", tx);
+      alert("✅ Successfully applied for bounty #" + bountyId);
+      fetchBounties();
+    } catch (err: any) {
+      console.error("applyForBounty: Error", err);
+      alert(err.message);
+    }
+  };
+
+  useEffect(() => {
+    if (registry) {
+      console.log("useEffect: Registry ready, fetching bounties...");
+      fetchBounties();
+    } else {
+      console.log("useEffect: Registry not ready yet");
+    }
+  }, [registry]);
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-gradient-to-br from-teal-700 to-blue-800 text-white py-16">
-        <div className="max-w-7xl mx-auto px-6">
-          <h1 className="text-4xl font-bold mb-4">Explore Legal Bounties</h1>
-          <p className="text-xl text-teal-100">
-            Browse through legal cases that need your expertise or support
-          </p>
-        </div>
-      </div>
+    <div className="container">
+      <style>{`
+        .container {
+          max-width: 950px;
+          margin: 0 auto;
+          padding: 1.5rem;
+          background: #fff;
+          color: #000;
+          font-family: sans-serif;
+        }
+        h1 { font-size: 1.8rem; margin-bottom: 1rem; }
+        h2 { font-size: 1.3rem; margin-top: 1rem; font-weight: bold; }
+        button {
+          cursor: pointer;
+          border: none;
+          border-radius: 4px;
+          padding: 0.4rem 0.8rem;
+          margin-top: 6px;
+          font-size: 0.9rem;
+        }
+        .btn-accent { background: #0070f3; color: #fff; }
+        ul { list-style: none; padding-left: 0; }
+        li {
+          border: 1px solid #ddd;
+          border-radius: 8px;
+          padding: 1rem;
+          margin-bottom: 1rem;
+        }
+        .milestone {
+          background: #f9f9f9;
+          border-radius: 6px;
+          padding: 6px 10px;
+          margin: 4px 0;
+          font-size: 0.85rem;
+        }
+      `}</style>
 
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        <div className="flex flex-col md:flex-row gap-4 mb-8">
-          <div className="flex-1 relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-            <input
-              type="text"
-              placeholder="Search bounties..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent"
-            />
-          </div>
+      <h1>All Bounties on HakiChain</h1>
 
-          <select
-            value={selectedCategory}
-            onChange={(e) => setSelectedCategory(e.target.value)}
-            className="px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-teal-500 focus:border-transparent bg-white"
-          >
-            {categories.map((cat) => (
-              <option key={cat} value={cat}>
-                {cat}
-              </option>
+      {!account ? (
+        <button
+          className="btn-accent"
+          onClick={connectWallet}
+          disabled={isConnecting}
+        >
+          {isConnecting ? "Connecting..." : "Connect Wallet"}
+        </button>
+      ) : (
+        <p>
+          Connected: <b style={{ color: "green" }}>{account}</b>
+        </p>
+      )}
+
+      {loading ? (
+        <p>Loading bounties...</p>
+      ) : (
+        <>
+          {allBounties.length === 0 && <p>No bounties found.</p>}
+          <ul>
+            {allBounties.map((b: any) => (
+              <li key={b.id}>
+                <strong>Bounty #{b.id}</strong> <br />
+                NGO: {b.ngo} <br />
+                Active: {b.active ? "✅ Active" : "❌ Closed"} <br />
+                Total Funding:{" "}
+                <b>{parseFloat(b.totalContributions).toFixed(4)} ETH</b>
+                <br />
+                {b.lawyerSelected ? (
+                  <p>Assigned Lawyer: {b.assignedLawyer}</p>
+                ) : (
+                  <button
+                    className="btn-accent"
+                    onClick={() => applyForBounty(b.id)}
+                  >
+                    Apply
+                  </button>
+                )}
+                {b.milestones && b.milestones.length > 0 && (
+                  <>
+                    <h4 style={{ marginTop: "0.8rem" }}>Milestones:</h4>
+                    <ul>
+                      {b.milestones.map((m: any, idx: number) => {
+                        const amount = m.amount ?? m[0];
+                        const completed = m.completed ?? m[1];
+                        const milestoneId = m.id ?? idx + 1;
+
+                        return (
+                          <li key={idx} className="milestone">
+                            ID: {milestoneId} | Amount: {ethers.formatEther(amount)} ETH |{" "}
+                            {completed ? "✅ Completed" : "⏳ Pending"}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  </>
+                )}
+              </li>
             ))}
-          </select>
-        </div>
-
-        {loading ? (
-          <div className="text-center py-12">
-            <div className="inline-block w-8 h-8 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
-            <p className="mt-4 text-gray-600">Loading bounties...</p>
-          </div>
-        ) : filteredBounties.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-600">No bounties found matching your criteria.</p>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredBounties.map((bounty) => (
-              <BountyCard key={bounty.id} bounty={bounty} />
-            ))}
-          </div>
-        )}
-      </div>
+          </ul>
+        </>
+      )}
     </div>
-  );
-}
-
-function BountyCard({ bounty }: { bounty: Bounty }) {
-  const fundingPercentage = (bounty.current_funding / bounty.funding_goal) * 100;
-  const daysRemaining = bounty.deadline
-    ? Math.ceil((new Date(bounty.deadline).getTime() - Date.now()) / (1000 * 60 * 60 * 24))
-    : null;
-
-  return (
-    <Link to={`/bounties/${bounty.id}`} className="block">
-      <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition p-6 h-full">
-        <div className="flex items-start justify-between mb-3">
-          <div className="flex-1">
-            <div className="inline-block px-3 py-1 bg-teal-100 text-teal-700 text-xs font-medium rounded-full mb-2">
-              ${bounty.funding_goal.toLocaleString()}
-            </div>
-            <h3 className="font-bold text-lg mb-2 line-clamp-2">{bounty.title}</h3>
-          </div>
-        </div>
-
-        <p className="text-gray-600 text-sm mb-4 line-clamp-3">{bounty.description}</p>
-
-        <div className="space-y-2 mb-4">
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <MapPin className="w-4 h-4" />
-            <span>{bounty.jurisdiction}</span>
-          </div>
-
-          {daysRemaining !== null && (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
-              <Clock className="w-4 h-4" />
-              <span>
-                {daysRemaining > 0 ? `${daysRemaining} days remaining` : 'Deadline passed'}
-              </span>
-            </div>
-          )}
-
-          <div className="flex items-center gap-2 text-sm text-gray-600">
-            <Tag className="w-4 h-4" />
-            <span>{bounty.category}</span>
-          </div>
-        </div>
-
-        <div className="pt-4 border-t border-gray-100">
-          <div className="flex items-center justify-between text-sm mb-2">
-            <span className="text-gray-600">Funding Progress</span>
-            <span className="font-medium text-teal-600">
-              ${bounty.current_funding.toLocaleString()} / ${bounty.funding_goal.toLocaleString()}
-            </span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div
-              className="bg-teal-600 h-2 rounded-full transition-all"
-              style={{ width: `${Math.min(fundingPercentage, 100)}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {bounty.tags && bounty.tags.length > 0 && (
-          <div className="mt-4 flex flex-wrap gap-2">
-            {bounty.tags.slice(0, 3).map((tag, index) => (
-              <span
-                key={index}
-                className="px-2 py-1 bg-gray-100 text-gray-600 text-xs rounded"
-              >
-                {tag}
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
-    </Link>
   );
 }
