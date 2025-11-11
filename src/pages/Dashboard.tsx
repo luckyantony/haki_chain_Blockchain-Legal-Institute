@@ -23,12 +23,16 @@ import {
 } from "lucide-react"
 import TourGuide from "../components/TourGuide"
 import LawyerSidebar from "../components/LawyerSidebar"
+import LawyerContent from "../components/LawyerContent"
+import NGOContent from "../components/NGOContent"
+import DonorContent from "../components/DonorContent"
 
 export default function Dashboard() {
   const { profile } = useAuth()
   const [bounties, setBounties] = useState<Bounty[]>([])
   const [applications, setApplications] = useState<Application[]>([])
   const [milestones, setMilestones] = useState<Milestone[]>([])
+  const [reminders, setReminders] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [showTour, setShowTour] = useState(false)
   const [searchParams] = useSearchParams()
@@ -47,37 +51,11 @@ export default function Dashboard() {
   async function loadDashboardData() {
     try {
       if (profile?.user_type === "ngo") {
-        const { data, error } = await supabase
-          .from("bounties")
-          .select("*")
-          .eq("ngo_id", profile.id)
-          .order("created_at", { ascending: false })
-
-        if (error) throw error
-        setBounties(data || [])
+        return <NGOContent />
       } else if (profile?.user_type === "lawyer") {
-        const [appsResult, milestonesResult, bountiesResult] = await Promise.all([
-          supabase
-            .from("applications")
-            .select("*, bounties(*)")
-            .eq("lawyer_id", profile.id)
-            .order("applied_at", { ascending: false }),
-          supabase
-            .from("milestones")
-            .select("*, bounties!inner(*)")
-            .eq("bounties.ngo_id", profile.id)
-            .order("created_at", { ascending: false }),
-          supabase.from("bounties").select("*").eq("status", "open").order("created_at", { ascending: false }).limit(5),
-        ])
-
-        if (appsResult.error) throw appsResult.error
-        if (milestonesResult.error) throw milestonesResult.error
-        if (bountiesResult.error) throw bountiesResult.error
-
-        setApplications(appsResult.data || [])
-        setMilestones(milestonesResult.data || [])
-        setBounties(bountiesResult.data || [])
-      }
+  // Skip Supabase fetch — Lawyer dashboard is self-contained
+    setLoading(false)
+  }
     } catch (error) {
       console.error("Error loading dashboard:", error)
     } finally {
@@ -97,7 +75,7 @@ export default function Dashboard() {
   }
 
   if (profile?.user_type === "ngo") {
-    return <NGODashboard bounties={bounties} onRefresh={loadDashboardData} />
+    return <NGOContent />
   }
 
   if (profile?.user_type === "lawyer") {
@@ -117,16 +95,18 @@ export default function Dashboard() {
             applications={applications}
             milestones={milestones}
             recommendedCases={bounties}
+            reminders={reminders}
             profile={profile}
             activeTab={activeTab}
           />
+          <LawyerContent />
         </div>
       </div>
     )
   }
 
   if (profile?.user_type === "donor") {
-    return <DonorDashboard />
+    return <DonorContent />
   }
 
   return (
@@ -212,12 +192,14 @@ function LawyerDashboard({
   applications,
   milestones,
   recommendedCases,
+  reminders,
   profile,
   activeTab,
 }: {
   applications: Application[]
   milestones: Milestone[]
   recommendedCases: Bounty[]
+  reminders: any[]
   profile: any
   activeTab: string
 }) {
@@ -313,34 +295,7 @@ function LawyerDashboard({
             {/* Left Column */}
             <div className="lg:col-span-2 space-y-6">
               {/* Automated Reminder System */}
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold">Automated Reminder System</h2>
-                  <Clock className="w-5 h-5 text-gray-400" />
-                </div>
-                <div className="grid md:grid-cols-3 gap-4 mb-4">
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-1">Due Today</div>
-                    <div className="text-3xl font-bold text-gray-900">0</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-1">Upcoming (7 days)</div>
-                    <div className="text-3xl font-bold text-gray-900">0</div>
-                  </div>
-                  <div className="bg-gray-50 rounded-lg p-4">
-                    <div className="text-sm text-gray-600 mb-1">Settings</div>
-                    <a href="?tab=settings" className="text-teal-600 hover:text-teal-700 font-medium">
-                      Configure →
-                    </a>
-                  </div>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="text-gray-600">▲ Due Today</div>
-                  <div className="text-gray-500">No reminders due today</div>
-                  <div className="text-gray-600 mt-3">Upcoming</div>
-                  <div className="text-gray-500">No upcoming reminders</div>
-                </div>
-              </div>
+              <ReminderSystemOverview reminders={reminders} profile={profile} />
 
               {/* Active Cases Section */}
               <div className="bg-white rounded-xl shadow-sm p-6">
@@ -744,6 +699,82 @@ function CreateBountyModal({ onClose, onSuccess }: { onClose: () => void; onSucc
   )
 }
 
+function ReminderSystemOverview({ reminders, profile }: { reminders: any[], profile: any }) {
+  const today = new Date().toISOString().split('T')[0]
+  const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+
+  const dueToday = reminders.filter(r => r.scheduled_date === today)
+  const upcoming = reminders.filter(r => r.scheduled_date > today && r.scheduled_date <= sevenDaysFromNow)
+
+  const hasDueToday = dueToday.length > 0
+
+  return (
+    <div className="bg-white rounded-xl shadow-sm p-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-xl font-bold">Automated Reminder System</h2>
+        <Link to="/haki-reminders">
+          <Clock className="w-5 h-5 text-gray-400 hover:text-teal-600 transition cursor-pointer" />
+        </Link>
+      </div>
+      <div className="flex gap-4 overflow-x-auto pb-2">
+        <Link to="/haki-reminders" className="flex-1 min-w-[200px]">
+          <div className={`bg-blue-50 border ${hasDueToday ? 'border-blue-500' : 'border-blue-300'} rounded-xl p-4 hover:shadow-md transition`}>
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-sm text-blue-700 font-medium">Due Today</div>
+              {hasDueToday && <AlertCircle className="w-4 h-4 text-blue-600" />}
+            </div>
+            <div className="text-3xl font-bold text-blue-900">{dueToday.length}</div>
+            {hasDueToday && <div className="text-xs text-blue-600 mt-1">Action required!</div>}
+          </div>
+        </Link>
+
+        <Link to="/haki-reminders" className="flex-1 min-w-[200px]">
+          <div className="bg-purple-50 border border-purple-300 rounded-xl p-4 hover:shadow-md transition">
+            <div className="text-sm text-purple-700 font-medium mb-2">Upcoming (7 days)</div>
+            <div className="text-3xl font-bold text-purple-900">{upcoming.length}</div>
+          </div>
+        </Link>
+
+        <div className="flex-1 min-w-[200px]">
+          <div className="bg-green-50 border border-green-300 rounded-xl p-4">
+            <div className="text-sm text-green-700 font-medium mb-2">Last Check</div>
+            <div className="text-sm text-green-900">
+              {profile?.last_reminder_check
+                ? new Date(profile.last_reminder_check).toLocaleString('en-US', {
+                    month: 'numeric',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: 'numeric',
+                    minute: '2-digit',
+                    hour12: true,
+                  })
+                : 'Never'}
+            </div>
+            {profile?.last_reminder_check &&
+             Date.now() - new Date(profile.last_reminder_check).getTime() > 24 * 60 * 60 * 1000 && (
+              <span className="inline-block mt-1 px-2 py-0.5 bg-pink-200 text-pink-800 text-xs rounded-full">
+                Inactive
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {hasDueToday && (
+        <div className="mt-4 pt-4 border-t border-gray-200">
+          <Link
+            to="/haki-reminders"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md text-sm hover:bg-blue-700 transition"
+          >
+            <Clock className="w-4 h-4" />
+            Process Due Reminders
+          </Link>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DonorDashboard() {
   return (
     <div className="min-h-screen bg-gray-50">
@@ -763,6 +794,7 @@ function DonorDashboard() {
           >
             Browse Cases
           </Link>
+          <div>< LawyerContent /></div>
         </div>
       </div>
     </div>
