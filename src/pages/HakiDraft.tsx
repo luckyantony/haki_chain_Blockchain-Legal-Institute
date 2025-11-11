@@ -30,7 +30,7 @@ const templatePresets = [
       "Our firm has been instructed to demand settlement of the outstanding professional fees owing to our client.",
     content: `HAKICHAIN ADVOCATES LLP
 1ST FLOOR, HAKI TOWERS, PARLIAMENT ROAD, NAIROBI
-P.O. BOX 12345-00100 NAIROBI | TEL: +254 700 000000 | EMAIL: INFO@HAKICHAIN.COM
+P.O. BOX 12345-00100 NAIROBI | TEL: +254 700 000000 | EMAIL: INFO@HAKICHAIN.CO.KE
 
 11 July 2025
 
@@ -64,7 +64,7 @@ For: HAKICHAIN ADVOCATES LLP`,
       "Mutual NDA covering confidential information exchanged during preliminary venture and investment discussions.",
     content: `HAKICHAIN ADVOCATES LLP
 1ST FLOOR, HAKI TOWERS, PARLIAMENT ROAD, NAIROBI
-P.O. BOX 12345-00100 NAIROBI | TEL: +254 700 000000 | EMAIL: INFO@HAKICHAIN.COM
+P.O. BOX 12345-00100 NAIROBI | TEL: +254 700 000000 | EMAIL: INFO@HAKICHAIN.CO.KE
 
 11 July 2025
 
